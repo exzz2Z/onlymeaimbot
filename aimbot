@@ -169,7 +169,7 @@ SliderBg.Parent = MainFrame
 Instance.new("UICorner", SliderBg).CornerRadius = UDim.new(0, 6)
 
 local SliderFill = Instance.new("Frame")
-SliderFill.Size = UDim2.new(180/600, 0, 1, 0)
+SliderFill.Size = UDim2.new((180 - MIN_FOV) / (MAX_FOV - MIN_FOV), 0, 1, 0)
 SliderFill.BackgroundColor3 = Color3fromRGB(130, 100, 255)
 SliderFill.BorderSizePixel = 0
 SliderFill.Parent = SliderBg
@@ -399,6 +399,50 @@ local CancelLock = LPH_NO_VIRTUALIZE(function()
     setrenderproperty(Environment.Tracer, "Visible", Environment.ClosestPlayerTracer.Enabled)
 end)
 
+-- ============================================================
+-- NPC Cache (обновляется по событиям, не каждый фрейм)
+-- ============================================================
+
+local CachedNPCs = {}
+local LockPartCache = Environment and Environment.Settings and Environment.Settings.LockPart or "Head"
+
+local function RebuildNPCCache()
+    CachedNPCs = {}
+    local playerChars = {}
+    for _, p in next, GetPlayers(Players) do
+        local c = __index(p, "Character")
+        if c then playerChars[c] = true end
+    end
+
+    for _, obj in next, GetDescendants(workspace) do
+        if obj.ClassName == "Humanoid" then
+            local char = obj.Parent
+            if not playerChars[char] then
+                local part = FindFirstChild(char, LockPartCache) or FindFirstChild(char, "HumanoidRootPart")
+                if part then
+                    table.insert(CachedNPCs, {character = char, part = part})
+                end
+            end
+        end
+    end
+end
+
+-- Перестраиваем кэш при изменениях workspace
+workspace.DescendantAdded:Connect(function(obj)
+    if obj.ClassName == "Humanoid" then
+        task.defer(RebuildNPCCache)
+    end
+end)
+
+workspace.DescendantRemoving:Connect(function(obj)
+    if obj.ClassName == "Humanoid" then
+        task.defer(RebuildNPCCache)
+    end
+end)
+
+-- Первоначальное заполнение
+RebuildNPCCache()
+
 -- Собираем все возможные таргеты (игроки + боты)
 local GetAllTargets = LPH_NO_VIRTUALIZE(function()
     local Settings = Environment.Settings
@@ -441,39 +485,37 @@ local GetAllTargets = LPH_NO_VIRTUALIZE(function()
     end
 
     -- Боты / NPC
-    if Settings.AimBots then
-        local playerChars = {}
-        for _, p in next, GetPlayers(Players) do
-            local c = __index(p, "Character")
-            if c then playerChars[c] = true end
-        end
-
-        for _, obj in next, GetDescendants(workspace) do
-            if obj.ClassName == "Humanoid" then
-                local char = obj.Parent
-                -- Не игрок
-                if not playerChars[char] then
-                    local part = FindFirstChild(char, LockPart) or FindFirstChild(char, "HumanoidRootPart")
-                    if part then
-                        if Settings.AliveCheck and __index(obj, "Health") <= 0 then
-                            continue
-                        end
-                        if Settings.WallCheck then
-                            local PartPosition = __index(part, "Position")
-                            local BlacklistTable = GetDescendants(__index(LocalPlayer, "Character"))
-                            if #GetPartsObscuringTarget(Camera, {PartPosition}, BlacklistTable) > 0 then
-                                continue
-                            end
-                        end
-                        table.insert(targets, {type = "npc", object = obj, character = char, part = part})
-                    end
-                end
-            end
-        end
+-- Боты / NPC (оптимизировано: кэш вместо GetDescendants каждый фрейм)
+if Settings.AimBots then
+    local playerChars = {}
+    for _, p in next, GetPlayers(Players) do
+        local c = __index(p, "Character")
+        if c then playerChars[c] = true end
     end
 
-    return targets
-end)
+    for _, target in next, CachedNPCs do
+        local char = target.character
+        local part = target.part
+
+        -- Проверяем что объект ещё существует
+        if not char or not char.Parent then continue end
+        if not part or not part.Parent then continue end
+        if playerChars[char] then continue end
+
+        local hum = FindFirstChildOfClass(char, "Humanoid")
+        if not hum then continue end
+
+        if Settings.AliveCheck and __index(hum, "Health") <= 0 then continue end
+
+        if Settings.WallCheck then
+            local PartPosition = __index(part, "Position")
+            local BlacklistTable = GetDescendants(__index(LocalPlayer, "Character"))
+            if #GetPartsObscuringTarget(Camera, {PartPosition}, BlacklistTable) > 0 then continue end
+        end
+
+        table.insert(targets, {type = "npc", object = hum, character = char, part = part})
+    end
+end
 
 -- Получить часть тела таргета
 local GetTargetPart = LPH_NO_VIRTUALIZE(function(target)
