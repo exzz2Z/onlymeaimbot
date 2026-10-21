@@ -57,7 +57,6 @@ ScreenGui.Name = "AimbotGUI"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
--- Попытка поместить в CoreGui (скрыто от LocalPlayer)
 local guiParent = pcall(function()
     ScreenGui.Parent = game:GetService("CoreGui")
 end) and game:GetService("CoreGui") or LocalPlayer:WaitForChild("PlayerGui")
@@ -65,11 +64,11 @@ if ScreenGui.Parent == nil then
     ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 end
 
--- Главный фрейм
+-- Главный фрейм (увеличен для новых кнопок)
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 260, 0, 160)
-MainFrame.Position = UDim2.new(0, 20, 0.5, -80)
+MainFrame.Size = UDim2.new(0, 270, 0, 230)
+MainFrame.Position = UDim2.new(0, 20, 0.5, -115)
 MainFrame.BackgroundColor3 = Color3fromRGB(20, 20, 30)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
@@ -95,7 +94,7 @@ local TitleCorner = Instance.new("UICorner")
 TitleCorner.CornerRadius = UDim.new(0, 10)
 TitleCorner.Parent = Title
 
--- Статус аимбота
+-- Статус + Toggle aimbot
 local StatusLabel = Instance.new("TextLabel")
 StatusLabel.Size = UDim2.new(1, -20, 0, 22)
 StatusLabel.Position = UDim2.new(0, 10, 0, 38)
@@ -107,7 +106,6 @@ StatusLabel.Font = Enum.Font.Gotham
 StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
 StatusLabel.Parent = MainFrame
 
--- Кнопка Toggle
 local ToggleBtn = Instance.new("TextButton")
 ToggleBtn.Size = UDim2.new(0, 80, 0, 26)
 ToggleBtn.Position = UDim2.new(1, -90, 0, 36)
@@ -123,10 +121,36 @@ local BtnCorner = Instance.new("UICorner")
 BtnCorner.CornerRadius = UDim.new(0, 6)
 BtnCorner.Parent = ToggleBtn
 
--- Метка FOV Radius
+-- ---- Toggle: Aim на игроков ----
+local PlayersToggleBtn = Instance.new("TextButton")
+PlayersToggleBtn.Size = UDim2.new(1, -20, 0, 26)
+PlayersToggleBtn.Position = UDim2.new(0, 10, 0, 68)
+PlayersToggleBtn.BackgroundColor3 = Color3fromRGB(50, 160, 90)
+PlayersToggleBtn.BorderSizePixel = 0
+PlayersToggleBtn.Text = "👤 Игроки: ВКЛ"
+PlayersToggleBtn.TextColor3 = Color3fromRGB(255, 255, 255)
+PlayersToggleBtn.TextSize = 13
+PlayersToggleBtn.Font = Enum.Font.GothamBold
+PlayersToggleBtn.Parent = MainFrame
+Instance.new("UICorner", PlayersToggleBtn).CornerRadius = UDim.new(0, 6)
+
+-- ---- Toggle: Aim на ботов ----
+local BotsToggleBtn = Instance.new("TextButton")
+BotsToggleBtn.Size = UDim2.new(1, -20, 0, 26)
+BotsToggleBtn.Position = UDim2.new(0, 10, 0, 100)
+BotsToggleBtn.BackgroundColor3 = Color3fromRGB(160, 100, 50)
+BotsToggleBtn.BorderSizePixel = 0
+BotsToggleBtn.Text = "🤖 Боты/NPC: ВЫКЛ"
+BotsToggleBtn.TextColor3 = Color3fromRGB(255, 255, 255)
+BotsToggleBtn.TextSize = 13
+BotsToggleBtn.Font = Enum.Font.GothamBold
+BotsToggleBtn.Parent = MainFrame
+Instance.new("UICorner", BotsToggleBtn).CornerRadius = UDim.new(0, 6)
+
+-- FOV Label
 local FovLabel = Instance.new("TextLabel")
 FovLabel.Size = UDim2.new(1, -20, 0, 20)
-FovLabel.Position = UDim2.new(0, 10, 0, 72)
+FovLabel.Position = UDim2.new(0, 10, 0, 134)
 FovLabel.BackgroundTransparency = 1
 FovLabel.Text = "FOV Radius: 180"
 FovLabel.TextColor3 = Color3fromRGB(200, 200, 200)
@@ -135,33 +159,26 @@ FovLabel.Font = Enum.Font.Gotham
 FovLabel.TextXAlignment = Enum.TextXAlignment.Left
 FovLabel.Parent = MainFrame
 
--- Слайдер FOV (фон)
+-- Слайдер FOV
 local SliderBg = Instance.new("Frame")
 SliderBg.Size = UDim2.new(1, -20, 0, 12)
-SliderBg.Position = UDim2.new(0, 10, 0, 96)
+SliderBg.Position = UDim2.new(0, 10, 0, 158)
 SliderBg.BackgroundColor3 = Color3fromRGB(50, 50, 70)
 SliderBg.BorderSizePixel = 0
 SliderBg.Parent = MainFrame
+Instance.new("UICorner", SliderBg).CornerRadius = UDim.new(0, 6)
 
-local SliderBgCorner = Instance.new("UICorner")
-SliderBgCorner.CornerRadius = UDim.new(0, 6)
-SliderBgCorner.Parent = SliderBg
-
--- Слайдер FOV (заполнение)
 local SliderFill = Instance.new("Frame")
-SliderFill.Size = UDim2.new(180/600, 0, 1, 0) -- начальное значение 180 из 600 макс
+SliderFill.Size = UDim2.new(180/600, 0, 1, 0)
 SliderFill.BackgroundColor3 = Color3fromRGB(130, 100, 255)
 SliderFill.BorderSizePixel = 0
 SliderFill.Parent = SliderBg
+Instance.new("UICorner", SliderFill).CornerRadius = UDim.new(0, 6)
 
-local SliderFillCorner = Instance.new("UICorner")
-SliderFillCorner.CornerRadius = UDim.new(0, 6)
-SliderFillCorner.Parent = SliderFill
-
--- Метка режима дистанции
+-- Mode Label
 local ModeLabel = Instance.new("TextLabel")
 ModeLabel.Size = UDim2.new(1, -20, 0, 20)
-ModeLabel.Position = UDim2.new(0, 10, 0, 115)
+ModeLabel.Position = UDim2.new(0, 10, 0, 177)
 ModeLabel.BackgroundTransparency = 1
 ModeLabel.Text = "Mode: 3D Distance 🌍"
 ModeLabel.TextColor3 = Color3fromRGB(150, 200, 255)
@@ -170,10 +187,10 @@ ModeLabel.Font = Enum.Font.Gotham
 ModeLabel.TextXAlignment = Enum.TextXAlignment.Left
 ModeLabel.Parent = MainFrame
 
--- Метка Lock
+-- Lock Label
 local LockLabel = Instance.new("TextLabel")
 LockLabel.Size = UDim2.new(1, -20, 0, 20)
-LockLabel.Position = UDim2.new(0, 10, 0, 135)
+LockLabel.Position = UDim2.new(0, 10, 0, 200)
 LockLabel.BackgroundTransparency = 1
 LockLabel.Text = "Target: None"
 LockLabel.TextColor3 = Color3fromRGB(255, 150, 150)
@@ -196,6 +213,8 @@ getgenv().ExunysDeveloperAimbot = {
 
     Settings = {
         Enabled = true,
+        AimPlayers = true,   -- аим на игроков
+        AimBots = false,     -- аим на ботов/NPC
 
         TeamCheck = false,
         AliveCheck = true,
@@ -234,8 +253,8 @@ getgenv().ExunysDeveloperAimbot = {
     FOVSettings = {
         Enabled = true,
         Visible = true,
-        Radius = 180,       -- радиус FOV-круга на экране (пикселей)
-        MaxWorldDistance = 500, -- ← НОВОЕ: максимальное 3D расстояние (студы)
+        Radius = 180,
+        MaxWorldDistance = 500,
         NumSides = 60,
         Thickness = 1,
         Transparency = 1,
@@ -264,146 +283,10 @@ setrenderproperty(Environment.FOVCircle, "Visible", false)
 setrenderproperty(Environment.FOVCircleOutline, "Visible", false)
 
 -- ============================================================
--- Core Functions
+-- GUI Toggles
 -- ============================================================
 
-local FixUsername = LPH_NO_VIRTUALIZE(function(String)
-    for _, Value in next, GetPlayers(Players) do
-        local Name = __index(Value, "Name")
-        if stringsub(stringlower(Name), 1, #String) == stringlower(String) then
-            return Name
-        end
-    end
-end)
-
-local GetRainbowColor = LPH_NO_VIRTUALIZE(function()
-    local RainbowSpeed = Environment.DeveloperSettings.RainbowSpeed
-    return Color3fromHSV(tick() % RainbowSpeed / RainbowSpeed, 1, 1)
-end)
-
-local ConvertVector = LPH_NO_VIRTUALIZE(function(Vector)
-    return Vector2new(Vector.X, Vector.Y)
-end)
-
-local CancelLock = LPH_NO_VIRTUALIZE(function()
-    Environment.Locked = nil
-    LockLabel.Text = "Target: None"
-    LockLabel.TextColor3 = Color3fromRGB(255, 150, 150)
-
-    setrenderproperty(Environment.FOVCircle, "Color", Environment.FOVSettings.Color)
-    __newindex(UserInputService, "MouseDeltaSensitivity", OriginalSensitivity)
-
-    if Animation then Animation:Cancel() end
-
-    setrenderproperty(Environment.Tracer, "Visible", Environment.ClosestPlayerTracer.Enabled)
-end)
-
---[[
-    ИЗМЕНЕНИЕ ЛОГИКИ:
-    Оригинал: выбирал цель по расстоянию от курсора до проекции на экране (2D пиксели).
-    Новая логика: выбирает цель по реальному 3D расстоянию от камеры до игрока В МИРЕ,
-    но только если проекция цели попадает в FOV-круг на экране.
-    Таким образом: FOV-круг всё ещё ограничивает угол захвата визуально,
-    но среди кандидатов в круге выбирается ближайший по миру, а не по экрану.
-]]
-local GetClosestPlayer = LPH_NO_VIRTUALIZE(function(Aux)
-    local Settings = Environment.Settings
-    local FOVSettings = Environment.FOVSettings
-    local LockPart = Settings.LockPart
-
-    if not Environment.Locked or Aux then
-        local ScreenFOV = FOVSettings.Enabled and FOVSettings.Radius or 2000
-        local Best3DDistance = math.huge
-        local BestPlayer = nil
-
-        local CameraPos = __index(Camera, "CFrame").Position
-        local MousePos = GetMouseLocation(UserInputService)
-
-        for _, Value in next, GetPlayers(Players) do
-            local Character = __index(Value, "Character")
-            local Humanoid = Character and FindFirstChildOfClass(Character, "Humanoid")
-
-            if Value ~= LocalPlayer
-                and not tablefind(Environment.Blacklisted, __index(Value, "Name"))
-                and Character
-                and FindFirstChild(Character, LockPart)
-                and Humanoid
-            then
-                local PartPosition = __index(Character[LockPart], "Position")
-                local TeamCheckOption = Environment.DeveloperSettings.TeamCheckOption
-
-                if Settings.TeamCheck and __index(Value, TeamCheckOption) == __index(LocalPlayer, TeamCheckOption) then
-                    continue
-                end
-
-                if Settings.AliveCheck and __index(Humanoid, "Health") <= 0 then
-                    continue
-                end
-
-                if Settings.WallCheck then
-                    local BlacklistTable = GetDescendants(__index(LocalPlayer, "Character"))
-                    for _, _Value in next, GetDescendants(Character) do
-                        BlacklistTable[#BlacklistTable + 1] = _Value
-                    end
-                    if #GetPartsObscuringTarget(Camera, {PartPosition}, BlacklistTable) > 0 then
-                        continue
-                    end
-                end
-
-                local ScreenVector, OnScreen = WorldToViewportPoint(Camera, PartPosition)
-                if not OnScreen then continue end
-
-                -- Проверяем: попадает ли проекция в FOV-круг на экране
-                local ScreenPos2D = Vector2new(ScreenVector.X, ScreenVector.Y)
-                local ScreenDist = (MousePos - ScreenPos2D).Magnitude
-                if ScreenDist > ScreenFOV then continue end
-
-                -- Среди кандидатов в круге — выбираем по 3D расстоянию
-                local WorldDist = (CameraPos - PartPosition).Magnitude
-
-                if WorldDist < Best3DDistance then
-                    Best3DDistance = WorldDist
-                    BestPlayer = Value
-                end
-            end
-        end
-
-        if BestPlayer then
-            if not Aux then
-                Environment.Locked = BestPlayer
-                LockLabel.Text = "Target: " .. __index(BestPlayer, "Name")
-                LockLabel.TextColor3 = Color3fromRGB(100, 255, 100)
-            elseif not Running and not Environment.Locked then
-                return BestPlayer
-            end
-        end
-
-    else
-        -- Если уже залочен — проверяем, не вышел ли за FOV
-        local LockPart_ = Settings.LockPart
-        local LockedChar = __index(Environment.Locked, "Character")
-        if not LockedChar or not FindFirstChild(LockedChar, LockPart_) then
-            CancelLock()
-            return
-        end
-
-        local LockedPos = __index(LockedChar[LockPart_], "Position")
-        local ScreenVec, OnScreen = WorldToViewportPoint(Camera, LockedPos)
-        local ScreenPos2D = Vector2new(ScreenVec.X, ScreenVec.Y)
-        local MousePos = GetMouseLocation(UserInputService)
-        local ScreenFOV = Environment.FOVSettings.Enabled and Environment.FOVSettings.Radius or 2000
-
-        if not OnScreen or (MousePos - ScreenPos2D).Magnitude > ScreenFOV then
-            CancelLock()
-        end
-    end
-end)
-
--- ============================================================
--- GUI Logic
--- ============================================================
-
--- Toggle кнопка
+-- Главный Toggle
 ToggleBtn.MouseButton1Click:Connect(function()
     Environment.Settings.Enabled = not Environment.Settings.Enabled
     if Environment.Settings.Enabled then
@@ -416,9 +299,32 @@ ToggleBtn.MouseButton1Click:Connect(function()
         StatusLabel.Text = "Aimbot: OFF"
         StatusLabel.TextColor3 = Color3fromRGB(255, 100, 100)
         ToggleBtn.BackgroundColor3 = Color3fromRGB(200, 80, 80)
-        CancelLock()
         setrenderproperty(Environment.FOVCircle, "Visible", false)
         setrenderproperty(Environment.FOVCircleOutline, "Visible", false)
+    end
+end)
+
+-- Toggle игроки
+PlayersToggleBtn.MouseButton1Click:Connect(function()
+    Environment.Settings.AimPlayers = not Environment.Settings.AimPlayers
+    if Environment.Settings.AimPlayers then
+        PlayersToggleBtn.Text = "👤 Игроки: ВКЛ"
+        PlayersToggleBtn.BackgroundColor3 = Color3fromRGB(50, 160, 90)
+    else
+        PlayersToggleBtn.Text = "👤 Игроки: ВЫКЛ"
+        PlayersToggleBtn.BackgroundColor3 = Color3fromRGB(100, 50, 50)
+    end
+end)
+
+-- Toggle боты
+BotsToggleBtn.MouseButton1Click:Connect(function()
+    Environment.Settings.AimBots = not Environment.Settings.AimBots
+    if Environment.Settings.AimBots then
+        BotsToggleBtn.Text = "🤖 Боты/NPC: ВКЛ"
+        BotsToggleBtn.BackgroundColor3 = Color3fromRGB(50, 160, 90)
+    else
+        BotsToggleBtn.Text = "🤖 Боты/NPC: ВЫКЛ"
+        BotsToggleBtn.BackgroundColor3 = Color3fromRGB(160, 100, 50)
     end
 end)
 
@@ -431,7 +337,6 @@ local function UpdateSlider(inputX)
     local bgSize = SliderBg.AbsoluteSize.X
     local rel = math.clamp((inputX - bgPos) / bgSize, 0, 1)
     local newRadius = math.floor(MIN_FOV + rel * (MAX_FOV - MIN_FOV))
-
     Environment.FOVSettings.Radius = newRadius
     FovLabel.Text = "FOV Radius: " .. newRadius
     SliderFill.Size = UDim2.new(rel, 0, 1, 0)
@@ -460,6 +365,202 @@ UserInputService.InputEnded:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
         SliderDragging = false
     end
+end)
+
+-- ============================================================
+-- Core Functions
+-- ============================================================
+
+local FixUsername = LPH_NO_VIRTUALIZE(function(String)
+    for _, Value in next, GetPlayers(Players) do
+        local Name = __index(Value, "Name")
+        if stringsub(stringlower(Name), 1, #String) == stringlower(String) then
+            return Name
+        end
+    end
+end)
+
+local GetRainbowColor = LPH_NO_VIRTUALIZE(function()
+    local RainbowSpeed = Environment.DeveloperSettings.RainbowSpeed
+    return Color3fromHSV(tick() % RainbowSpeed / RainbowSpeed, 1, 1)
+end)
+
+local ConvertVector = LPH_NO_VIRTUALIZE(function(Vector)
+    return Vector2new(Vector.X, Vector.Y)
+end)
+
+local CancelLock = LPH_NO_VIRTUALIZE(function()
+    Environment.Locked = nil
+    LockLabel.Text = "Target: None"
+    LockLabel.TextColor3 = Color3fromRGB(255, 150, 150)
+    setrenderproperty(Environment.FOVCircle, "Color", Environment.FOVSettings.Color)
+    __newindex(UserInputService, "MouseDeltaSensitivity", OriginalSensitivity)
+    if Animation then Animation:Cancel() end
+    setrenderproperty(Environment.Tracer, "Visible", Environment.ClosestPlayerTracer.Enabled)
+end)
+
+-- Собираем все возможные таргеты (игроки + боты)
+local GetAllTargets = LPH_NO_VIRTUALIZE(function()
+    local Settings = Environment.Settings
+    local LockPart = Settings.LockPart
+    local TeamCheckOption = Environment.DeveloperSettings.TeamCheckOption
+    local targets = {}
+
+    -- Игроки
+    if Settings.AimPlayers then
+        for _, Value in next, GetPlayers(Players) do
+            local Character = __index(Value, "Character")
+            local Humanoid = Character and FindFirstChildOfClass(Character, "Humanoid")
+
+            if Value ~= LocalPlayer
+                and not tablefind(Environment.Blacklisted, __index(Value, "Name"))
+                and Character
+                and FindFirstChild(Character, LockPart)
+                and Humanoid
+            then
+                if Settings.TeamCheck and __index(Value, TeamCheckOption) == __index(LocalPlayer, TeamCheckOption) then
+                    continue
+                end
+                if Settings.AliveCheck and __index(Humanoid, "Health") <= 0 then
+                    continue
+                end
+                if Settings.WallCheck then
+                    local PartPosition = __index(Character[LockPart], "Position")
+                    local BlacklistTable = GetDescendants(__index(LocalPlayer, "Character"))
+                    for _, _Value in next, GetDescendants(Character) do
+                        BlacklistTable[#BlacklistTable + 1] = _Value
+                    end
+                    if #GetPartsObscuringTarget(Camera, {PartPosition}, BlacklistTable) > 0 then
+                        continue
+                    end
+                end
+                -- Передаём как {type="player", object=Value}
+                table.insert(targets, {type = "player", object = Value, character = Character})
+            end
+        end
+    end
+
+    -- Боты / NPC
+    if Settings.AimBots then
+        local playerChars = {}
+        for _, p in next, GetPlayers(Players) do
+            local c = __index(p, "Character")
+            if c then playerChars[c] = true end
+        end
+
+        for _, obj in next, GetDescendants(workspace) do
+            if obj.ClassName == "Humanoid" then
+                local char = obj.Parent
+                -- Не игрок
+                if not playerChars[char] then
+                    local part = FindFirstChild(char, LockPart) or FindFirstChild(char, "HumanoidRootPart")
+                    if part then
+                        if Settings.AliveCheck and __index(obj, "Health") <= 0 then
+                            continue
+                        end
+                        if Settings.WallCheck then
+                            local PartPosition = __index(part, "Position")
+                            local BlacklistTable = GetDescendants(__index(LocalPlayer, "Character"))
+                            if #GetPartsObscuringTarget(Camera, {PartPosition}, BlacklistTable) > 0 then
+                                continue
+                            end
+                        end
+                        table.insert(targets, {type = "npc", object = obj, character = char, part = part})
+                    end
+                end
+            end
+        end
+    end
+
+    return targets
+end)
+
+-- Получить часть тела таргета
+local GetTargetPart = LPH_NO_VIRTUALIZE(function(target)
+    local LockPart = Environment.Settings.LockPart
+    if target.type == "player" then
+        return FindFirstChild(target.character, LockPart)
+    else
+        return target.part
+    end
+end)
+
+-- Получить имя таргета для LockLabel
+local GetTargetName = LPH_NO_VIRTUALIZE(function(target)
+    if target.type == "player" then
+        return __index(target.object, "Name")
+    else
+        return target.character.Name .. " [NPC]"
+    end
+end)
+
+local GetClosestTarget = LPH_NO_VIRTUALIZE(function(Aux)
+    local FOVSettings = Environment.FOVSettings
+    local Settings = Environment.Settings
+
+    if not Environment.Locked or Aux then
+        local ScreenFOV = FOVSettings.Enabled and FOVSettings.Radius or 2000
+        local Best3DDistance = math.huge
+        local BestTarget = nil
+
+        local CameraPos = __index(Camera, "CFrame").Position
+        local MousePos = GetMouseLocation(UserInputService)
+
+        for _, target in next, GetAllTargets() do
+            local part = GetTargetPart(target)
+            if not part then continue end
+
+            local PartPosition = __index(part, "Position")
+            local ScreenVector, OnScreen = WorldToViewportPoint(Camera, PartPosition)
+            if not OnScreen then continue end
+
+            local ScreenPos2D = Vector2new(ScreenVector.X, ScreenVector.Y)
+            local ScreenDist = (MousePos - ScreenPos2D).Magnitude
+            if ScreenDist > ScreenFOV then continue end
+
+            local WorldDist = (CameraPos - PartPosition).Magnitude
+            if WorldDist < Best3DDistance then
+                Best3DDistance = WorldDist
+                BestTarget = target
+            end
+        end
+
+        if BestTarget then
+            if not Aux then
+                Environment.Locked = BestTarget
+                LockLabel.Text = "Target: " .. GetTargetName(BestTarget)
+                LockLabel.TextColor3 = Color3fromRGB(100, 255, 100)
+            elseif not Running and not Environment.Locked then
+                return BestTarget
+            end
+        end
+
+    else
+        -- Проверяем живой ли залоченный таргет
+        local LockPart_ = Settings.LockPart
+        local locked = Environment.Locked
+        local lockedChar = locked.character or (locked.type == "player" and __index(locked.object, "Character"))
+
+        if not lockedChar or not FindFirstChild(lockedChar, LockPart_) then
+            CancelLock()
+            return
+        end
+
+        local LockedPos = __index(lockedChar[LockPart_], "Position")
+        local ScreenVec, OnScreen = WorldToViewportPoint(Camera, LockedPos)
+        local ScreenPos2D = Vector2new(ScreenVec.X, ScreenVec.Y)
+        local MousePos = GetMouseLocation(UserInputService)
+        local ScreenFOV = FOVSettings.Enabled and FOVSettings.Radius or 2000
+
+        if not OnScreen or (MousePos - ScreenPos2D).Magnitude > ScreenFOV then
+            CancelLock()
+        end
+    end
+end)
+
+-- Обёртка для совместимости с оригинальным GetClosestPlayer
+local GetClosestPlayer = LPH_NO_VIRTUALIZE(function(Aux)
+    return GetClosestTarget(Aux)
 end)
 
 -- ============================================================
@@ -493,7 +594,6 @@ local Load = function()
                     if Triggerbot.AliveCheck and __index(Humanoid, "Health") <= 0 then return end
                     if Triggerbot.AimLockedCheck and not Environment.Locked then return end
                     if Triggerbot.Delay ~= 0 then taskwait(Triggerbot.Delay) end
-
                     mouse1press(); __index(RunService, UpdateMode):Wait(); mouse1release(); mouse1click(); __index(RunService, UpdateMode):Wait()
                 end
             end
@@ -501,18 +601,16 @@ local Load = function()
     end
 
     ServiceConnections.UpdateTracer = Connect(__index(RunService, UpdateMode), LPH_NO_VIRTUALIZE(function()
-        local ClosestPlayer = TracerSettings.Enabled and Settings.Enabled and GetClosestPlayer(true)
+        local ClosestTarget = TracerSettings.Enabled and Settings.Enabled and GetClosestTarget(true)
 
-        if ClosestPlayer then
+        if ClosestTarget then
             setrenderproperty(Tracer, "Visible", true)
-
             for Index, Value in next, TracerSettings do
                 if Index == "Color" then continue end
                 if pcall(getrenderproperty, Tracer, Index) then
                     setrenderproperty(Tracer, Index, Value)
                 end
             end
-
             setrenderproperty(Tracer, "Color", TracerSettings.RainbowColor and GetRainbowColor() or TracerSettings.Color)
 
             if TracerSettings.Position == 1 then
@@ -521,11 +619,12 @@ local Load = function()
                 setrenderproperty(Tracer, "From", CameraViewportSize / 2)
             elseif TracerSettings.Position == 3 then
                 setrenderproperty(Tracer, "From", GetMouseLocation(UserInputService))
-            else
-                TracerSettings.Position = 3
             end
 
-            setrenderproperty(Tracer, "To", ConvertVector(WorldToViewportPoint(Camera, __index(__index(ClosestPlayer, "Character")[Settings.LockPart], "Position"))))
+            local part = GetTargetPart(ClosestTarget)
+            if part then
+                setrenderproperty(Tracer, "To", ConvertVector(WorldToViewportPoint(Camera, __index(part, "Position"))))
+            end
         else
             setrenderproperty(Tracer, "Visible", false)
         end
@@ -540,7 +639,6 @@ local Load = function()
                     setrenderproperty(FOVCircleOutline, Index, Value)
                 end
             end
-
             setrenderproperty(FOVCircle, "Color", (Environment.Locked and FOVSettings.LockedColor) or FOVSettings.RainbowColor and GetRainbowColor() or FOVSettings.Color)
             setrenderproperty(FOVCircleOutline, "Color", FOVSettings.RainbowOutlineColor and GetRainbowColor() or FOVSettings.OutlineColor)
             setrenderproperty(FOVCircleOutline, "Thickness", FOVSettings.Thickness + 1)
@@ -552,14 +650,23 @@ local Load = function()
         end
 
         if Running and Settings.Enabled then
-            GetClosestPlayer()
-
-            local Offset = Settings.OffsetToMoveDirection
-                and __index(FindFirstChildOfClass(__index(Environment.Locked, "Character"), "Humanoid"), "MoveDirection") * (mathclamp(Settings.OffsetIncrement, 1, 30) / 10)
-                or Vector3zero
+            GetClosestTarget()
 
             if Environment.Locked then
-                local LockedPosition_Vector3 = __index(__index(Environment.Locked, "Character")[LockPart], "Position")
+                local locked = Environment.Locked
+                local lockedChar = locked.character or (locked.type == "player" and __index(locked.object, "Character"))
+                local part = GetTargetPart(locked)
+
+                if not lockedChar or not part then
+                    CancelLock()
+                    return
+                end
+
+                local LockedPosition_Vector3 = __index(part, "Position")
+                local Offset = Settings.OffsetToMoveDirection
+                    and __index(FindFirstChildOfClass(lockedChar, "Humanoid"), "MoveDirection") * (mathclamp(Settings.OffsetIncrement, 1, 30) / 10)
+                    or Vector3zero
+
                 local LockedPosition = WorldToViewportPoint(Camera, LockedPosition_Vector3 + Offset)
 
                 if Settings.LockMode == 2 then
@@ -578,7 +685,6 @@ local Load = function()
                     else
                         __newindex(Camera, "CFrame", CFramenew(Camera.CFrame.Position, LockedPosition_Vector3 + Offset))
                     end
-
                     __newindex(UserInputService, "MouseDeltaSensitivity", 0)
                 end
 
@@ -590,10 +696,8 @@ local Load = function()
 
     ServiceConnections.InputBeganConnection = Connect(__index(UserInputService, "InputBegan"), LPH_NO_VIRTUALIZE(function(Input)
         if Typing then return end
-
         local TriggerKey = Settings.TriggerKey
         local Toggle = Settings.Toggle
-
         if Input.UserInputType == Enum.UserInputType.Keyboard and Input.KeyCode == TriggerKey
             or Input.UserInputType == TriggerKey
         then
@@ -608,19 +712,18 @@ local Load = function()
 
     ServiceConnections.InputEndedConnection = Connect(__index(UserInputService, "InputEnded"), LPH_NO_VIRTUALIZE(function(Input)
         if Typing then return end
-
         local TriggerKey = Settings.TriggerKey
-
         if Input.UserInputType == Enum.UserInputType.Keyboard and Input.KeyCode == TriggerKey
             or Input.UserInputType == TriggerKey
         then
-            Running = false
-            CancelLock()
+            if not Settings.Toggle then
+                Running = false
+                CancelLock()
+            end
         end
     end))
 end
 
--- Typing check
 ServiceConnections.TypingStartedConnection = Connect(__index(UserInputService, "TextBoxFocused"), function() Typing = true end)
 ServiceConnections.TypingEndedConnection = Connect(__index(UserInputService, "TextBoxFocusReleased"), function() Typing = false end)
 
@@ -632,19 +735,14 @@ repeat taskwait(0) until Environment and Load
 
 Environment.Exit = LPH_NO_VIRTUALIZE(function(self)
     assert(self, "AIMBOT.Exit: Missing parameter #1.")
-
     for Index, _ in next, ServiceConnections do
         pcall(Disconnect, ServiceConnections[Index])
     end
-
-    Load = nil; ConvertVector = nil; CancelLock = nil; GetClosestPlayer = nil; GetRainbowColor = nil; FixUsername = nil
-
+    Load = nil; ConvertVector = nil; CancelLock = nil; GetClosestTarget = nil; GetClosestPlayer = nil; GetRainbowColor = nil; FixUsername = nil
     self.FOVCircle:Remove()
     self.FOVCircleOutline:Remove()
     self.Tracer:Remove()
-
     ScreenGui:Destroy()
-
     getgenv().ExunysDeveloperAimbot = nil
     pcall(collectgarbage, "step", 200)
 end)
@@ -675,7 +773,7 @@ Environment.Whitelist = LPH_NO_VIRTUALIZE(function(self, Username)
 end)
 
 Environment.GetClosestPlayer = LPH_NO_VIRTUALIZE(function()
-    return GetClosestPlayer(true)
+    return GetClosestTarget(true)
 end)
 
 Environment.Load = Load
