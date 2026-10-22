@@ -174,7 +174,7 @@ local caStatusLabel = Instance.new("TextLabel")
 caStatusLabel.Size              = UDim2.new(1, -20, 0, 22)
 caStatusLabel.Position          = UDim2.new(0, 10, 0, 5)
 caStatusLabel.BackgroundTransparency = 1
-caStatusLabel.Text              = "Статус: ВЫКЛ"
+caStatusLabel.Text              = "Status: OFF"
 caStatusLabel.TextColor3        = Color3fromRGB(255, 80, 80)
 caStatusLabel.TextSize          = 13
 caStatusLabel.Font              = Enum.Font.Gotham
@@ -186,7 +186,7 @@ local caDistLabel = Instance.new("TextLabel")
 caDistLabel.Size              = UDim2.new(1, -20, 0, 20)
 caDistLabel.Position          = UDim2.new(0, 10, 0, 30)
 caDistLabel.BackgroundTransparency = 1
-caDistLabel.Text              = "Ближайший коп: —"
+caDistLabel.Text              = "Nearest cop: -"
 caDistLabel.TextColor3        = Color3fromRGB(160, 160, 255)
 caDistLabel.TextSize          = 12
 caDistLabel.Font              = Enum.Font.Gotham
@@ -213,7 +213,7 @@ caSoundInput.BackgroundColor3 = Color3fromRGB(30, 30, 40)
 caSoundInput.BorderSizePixel  = 0
 caSoundInput.Text             = copConfig.soundId
 caSoundInput.TextColor3       = Color3fromRGB(255, 255, 255)
-caSoundInput.PlaceholderText  = "Введи Sound ID..."
+caSoundInput.PlaceholderText  = "Type Sound ID..."
 caSoundInput.PlaceholderColor3 = Color3fromRGB(100, 100, 100)
 caSoundInput.TextSize         = 13
 caSoundInput.Font             = Enum.Font.Gotham
@@ -226,7 +226,7 @@ local caRadiusLabel = Instance.new("TextLabel")
 caRadiusLabel.Size              = UDim2.new(1, -20, 0, 16)
 caRadiusLabel.Position          = UDim2.new(0, 10, 0, 112)
 caRadiusLabel.BackgroundTransparency = 1
-caRadiusLabel.Text              = "Радиус (студов): " .. copConfig.radius
+caRadiusLabel.Text              = "Radius (in studs)" .. copConfig.radius
 caRadiusLabel.TextColor3        = Color3fromRGB(180, 180, 180)
 caRadiusLabel.TextSize          = 12
 caRadiusLabel.Font              = Enum.Font.Gotham
@@ -241,7 +241,7 @@ caRadiusInput.BackgroundColor3 = Color3fromRGB(30, 30, 40)
 caRadiusInput.BorderSizePixel  = 0
 caRadiusInput.Text             = tostring(copConfig.radius)
 caRadiusInput.TextColor3       = Color3fromRGB(255, 255, 255)
-caRadiusInput.PlaceholderText  = "Введи радиус..."
+caRadiusInput.PlaceholderText  = "Enter radius..."
 caRadiusInput.PlaceholderColor3 = Color3fromRGB(100, 100, 100)
 caRadiusInput.TextSize         = 13
 caRadiusInput.Font             = Enum.Font.Gotham
@@ -255,7 +255,7 @@ caToggleBtn.Size             = UDim2.new(1, -20, 0, 32)
 caToggleBtn.Position         = UDim2.new(0, 10, 0, 170)
 caToggleBtn.BackgroundColor3 = Color3fromRGB(60, 60, 80)
 caToggleBtn.BorderSizePixel  = 0
-caToggleBtn.Text             = "▶ ВКЛЮЧИТЬ"
+caToggleBtn.Text             = "▶ TURN ON"
 caToggleBtn.TextColor3       = Color3fromRGB(255, 255, 255)
 caToggleBtn.TextSize         = 14
 caToggleBtn.Font             = Enum.Font.GothamBold
@@ -303,7 +303,7 @@ abPlayersBtn.Size             = UDim2.new(1, -20, 0, 26)
 abPlayersBtn.Position         = UDim2.new(0, 10, 0, 34)
 abPlayersBtn.BackgroundColor3 = Color3fromRGB(50, 160, 90)
 abPlayersBtn.BorderSizePixel  = 0
-abPlayersBtn.Text             = "👤 Игроки: ВКЛ"
+abPlayersBtn.Text             = "👤 Players: ON"
 abPlayersBtn.TextColor3       = Color3fromRGB(255, 255, 255)
 abPlayersBtn.TextSize         = 13
 abPlayersBtn.Font             = Enum.Font.GothamBold
@@ -316,7 +316,7 @@ abBotsBtn.Size             = UDim2.new(1, -20, 0, 26)
 abBotsBtn.Position         = UDim2.new(0, 10, 0, 65)
 abBotsBtn.BackgroundColor3 = Color3fromRGB(160, 100, 50)
 abBotsBtn.BorderSizePixel  = 0
-abBotsBtn.Text             = "🤖 Боты/NPC: ВЫКЛ"
+abBotsBtn.Text             = "🤖 Bots/NPC's: OFF"
 abBotsBtn.TextColor3       = Color3fromRGB(255, 255, 255)
 abBotsBtn.TextSize         = 13
 abBotsBtn.Font             = Enum.Font.GothamBold
@@ -449,14 +449,14 @@ caToggleBtn.MouseButton1Click:Connect(function()
     if copConfig.enabled then
         caToggleBtn.Text             = "⏹ ВЫКЛЮЧИТЬ"
         caToggleBtn.BackgroundColor3 = Color3fromRGB(200, 50, 50)
-        caStatusLabel.Text           = "Статус: ВКЛ ✅"
+        caStatusLabel.Text           = "Status: ON ✅"
         caStatusLabel.TextColor3     = Color3fromRGB(80, 255, 80)
     else
-        caToggleBtn.Text             = "▶ ВКЛЮЧИТЬ"
+        caToggleBtn.Text             = "▶ Turn ON"
         caToggleBtn.BackgroundColor3 = Color3fromRGB(60, 60, 80)
-        caStatusLabel.Text           = "Статус: ВЫКЛ"
+        caStatusLabel.Text           = "Status: OFF"
         caStatusLabel.TextColor3     = Color3fromRGB(255, 80, 80)
-        caDistLabel.Text             = "Ближайший коп: —"
+        caDistLabel.Text             = "Nearest cop: -"
         caDistLabel.TextColor3       = Color3fromRGB(160, 160, 255)
         if alarmPlaying then copSound:Stop(); alarmPlaying = false end
     end
@@ -469,7 +469,7 @@ local copAlarmConn = RunService.Heartbeat:Connect(function()
 
     local myPos = getMyPosition()
     if not myPos then
-        caDistLabel.Text   = "Ближайший коп: —"
+        caDistLabel.Text   = "Nearest cop: -"
         caDistLabel.TextColor3 = Color3fromRGB(160, 160, 255)
         if alarmPlaying then copSound:Stop(); alarmPlaying = false end
         return
@@ -487,7 +487,7 @@ local copAlarmConn = RunService.Heartbeat:Connect(function()
     end
 
     if closestDist == math.huge then
-        caDistLabel.Text      = "Ближайший коп: не найден"
+        caDistLabel.Text      = "Nearest cop: not found"
         caDistLabel.TextColor3 = Color3fromRGB(160, 160, 255)
     else
         local dr = math.round(closestDist)
@@ -498,7 +498,7 @@ local copAlarmConn = RunService.Heartbeat:Connect(function()
         else
             caDistLabel.TextColor3 = Color3fromRGB(160, 160, 255)
         end
-        caDistLabel.Text = "Ближайший коп: " .. dr .. " ст."
+        caDistLabel.Text = "Nearest cop: " .. dr .. " ст."
     end
 
     if not copConfig.enabled then
@@ -608,10 +608,10 @@ end)
 abPlayersBtn.MouseButton1Click:Connect(function()
     Environment.Settings.AimPlayers = not Environment.Settings.AimPlayers
     if Environment.Settings.AimPlayers then
-        abPlayersBtn.Text             = "👤 Игроки: ВКЛ"
+        abPlayersBtn.Text             = "👤 Players: ON"
         abPlayersBtn.BackgroundColor3 = Color3fromRGB(50, 160, 90)
     else
-        abPlayersBtn.Text             = "👤 Игроки: ВЫКЛ"
+        abPlayersBtn.Text             = "👤 Players: OFF"
         abPlayersBtn.BackgroundColor3 = Color3fromRGB(100, 50, 50)
     end
 end)
@@ -619,10 +619,10 @@ end)
 abBotsBtn.MouseButton1Click:Connect(function()
     Environment.Settings.AimBots = not Environment.Settings.AimBots
     if Environment.Settings.AimBots then
-        abBotsBtn.Text             = "🤖 Боты/NPC: ВКЛ"
+        abBotsBtn.Text             = "🤖 Bots/NPC's: ON"
         abBotsBtn.BackgroundColor3 = Color3fromRGB(50, 160, 90)
     else
-        abBotsBtn.Text             = "🤖 Боты/NPC: ВЫКЛ"
+        abBotsBtn.Text             = "🤖 Bots/NPC's: OFF"
         abBotsBtn.BackgroundColor3 = Color3fromRGB(160, 100, 50)
     end
 end)
