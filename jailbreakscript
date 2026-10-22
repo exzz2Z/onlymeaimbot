@@ -693,6 +693,11 @@ local CancelLock = LPH_NO_VIRTUALIZE(function()
     setrenderproperty(Environment.Tracer, "Visible", Environment.ClosestPlayerTracer.Enabled)
 end)
 
+-- кеш NPC
+local npcCache = {}
+local npcCacheTime = 0
+local NPC_CACHE_INTERVAL = 1
+
 local GetAllTargets = LPH_NO_VIRTUALIZE(function()
     local Settings  = Environment.Settings
     local LockPart  = Settings.LockPart
@@ -723,27 +728,41 @@ local GetAllTargets = LPH_NO_VIRTUALIZE(function()
     end
 
     if Settings.AimBots then
-        local pChars = {}
-        for _, p in next, GetPlayers(Players) do
-            local c = __index(p, "Character")
-            if c then pChars[c] = true end
-        end
-        for _, obj in next, GetDescendants(workspace) do
-            if obj.ClassName == "Humanoid" then
-                local char = obj.Parent
-                if not pChars[char] then
-                    local part = FindFirstChild(char, LockPart) or FindFirstChild(char, "HumanoidRootPart")
-                    if part then
-                        if Settings.AliveCheck and __index(obj, "Health") <= 0 then continue end
-                        if Settings.WallCheck then
-                            local pp = __index(part, "Position")
-                            local bl = GetDescendants(__index(LocalPlayer, "Character"))
-                            if #GetPartsObscuringTarget(Camera, {pp}, bl) > 0 then continue end
+        local now = tick()
+        -- обновляем кеш раз в секунду
+        if now - npcCacheTime > NPC_CACHE_INTERVAL then
+            npcCacheTime = now
+            npcCache = {}
+            local pChars = {}
+            for _, p in next, GetPlayers(Players) do
+                local c = __index(p, "Character")
+                if c then pChars[c] = true end
+            end
+            for _, obj in next, GetDescendants(workspace) do
+                if obj.ClassName == "Humanoid" then
+                    local char = obj.Parent
+                    if not pChars[char] then
+                        local part = FindFirstChild(char, LockPart) or FindFirstChild(char, "HumanoidRootPart")
+                        if part then
+                            table.insert(npcCache, {type="npc", object=obj, character=char, part=part})
                         end
-                        table.insert(targets, {type="npc", object=obj, character=char, part=part})
                     end
                 end
             end
+        end
+
+        -- используем кеш
+        for _, target in next, npcCache do
+            local obj = target.object
+            if Settings.AliveCheck and (not obj or not obj.Parent or __index(obj, "Health") <= 0) then continue end
+            if Settings.WallCheck then
+                local part = target.part
+                if not part or not part.Parent then continue end
+                local pp = __index(part, "Position")
+                local bl = GetDescendants(__index(LocalPlayer, "Character"))
+                if #GetPartsObscuringTarget(Camera, {pp}, bl) > 0 then continue end
+            end
+            table.insert(targets, target)
         end
     end
 
