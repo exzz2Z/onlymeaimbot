@@ -725,7 +725,12 @@ local wsConn = RunService.Heartbeat:Connect(function()
     if not modsConfig.wsEnabled then return end
     local char = LocalPlayer.Character
     local hum  = char and char:FindFirstChildOfClass("Humanoid")
-    if hum then hum.WalkSpeed = modsConfig.wsValue end
+    if not hum then return end
+    -- sethiddenproperty для обхода серверного сброса
+    if sethiddenproperty then
+        sethiddenproperty(hum, "WalkSpeed", modsConfig.wsValue)
+    end
+    hum.WalkSpeed = modsConfig.wsValue
 end)
 _G.ExzzecutWSConn = wsConn
 
