@@ -721,16 +721,35 @@ local modsConfig     = { wsEnabled=false, wsValue=16, jpEnabled=false, jpValue=5
 local vfBodyVelocity = nil
 local vfBodyGyro     = nil
 
+local wsBodyVel = nil
+
 local wsConn = RunService.Heartbeat:Connect(function()
-    if not modsConfig.wsEnabled then return end
+    if not modsConfig.wsEnabled then
+        if wsBodyVel and wsBodyVel.Parent then wsBodyVel:Destroy(); wsBodyVel = nil end
+        return
+    end
     local char = LocalPlayer.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
     local hum  = char and char:FindFirstChildOfClass("Humanoid")
-    if not hum then return end
+    if not root or not hum then return end
+
+    -- обычный способ на всякий
     hum.WalkSpeed = modsConfig.wsValue
-    -- принудительный сброс анимационного контроллера если есть
-    local animator = hum:FindFirstChildOfClass("Animator")
-    if animator then
-        pcall(function() hum.WalkSpeed = modsConfig.wsValue end)
+
+    -- создаём BodyVelocity если нет
+    if not wsBodyVel or not wsBodyVel.Parent then
+        wsBodyVel = Instance.new("BodyVelocity")
+        wsBodyVel.MaxForce = Vector3.new(1e5, 0, 1e5) -- только горизонталь, не мешаем прыжку
+        wsBodyVel.Velocity  = Vector3.zero
+        wsBodyVel.Parent    = root
+    end
+
+    -- направление движения из MoveDirection гуманоида
+    local moveDir = hum.MoveDirection
+    if moveDir.Magnitude > 0 then
+        wsBodyVel.Velocity = moveDir.Unit * modsConfig.wsValue
+    else
+        wsBodyVel.Velocity = Vector3.zero
     end
 end)
 _G.ExzzecutWSConn = wsConn
@@ -782,6 +801,7 @@ wsToggleBtn.MouseButton1Click:Connect(function()
         wsToggleBtn.Text = "✓ " .. v; wsToggleBtn.BackgroundColor3 = Color3fromRGB(50, 160, 90)
     else
         wsToggleBtn.Text = "SET"; wsToggleBtn.BackgroundColor3 = Color3fromRGB(60, 60, 80)
+        if wsBodyVel and wsBodyVel.Parent then wsBodyVel:Destroy(); wsBodyVel = nil end
         local char = LocalPlayer.Character
         local hum  = char and char:FindFirstChildOfClass("Humanoid")
         if hum then hum.WalkSpeed = 16 end
@@ -815,7 +835,10 @@ vfToggleBtn.MouseButton1Click:Connect(function()
     end
 end)
 
-LocalPlayer.CharacterAdded:Connect(function() vfBodyVelocity = nil; vfBodyGyro = nil end)
+LocalPlayer.CharacterAdded:Connect(function()
+    wsBodyVel = nil
+    vfBodyVelocity = nil; vfBodyGyro = nil
+end)
 
 -- ============================================================
 -- AIMBOT ENVIRONMENT
