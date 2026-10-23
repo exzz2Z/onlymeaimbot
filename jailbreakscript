@@ -1,6 +1,6 @@
 -- ============================================================
 -- Exzzecut Jailbreak Hack | Combined GUI
--- Cop Alarm + Aimbot
+-- Cop Alarm + Aimbot + ESP + Mods
 -- ============================================================
 
 if LPH_OBFUSCATED == nil then
@@ -15,54 +15,53 @@ local mouse1press, mouse1release, mouse1click, taskwait = mouse1press, mouse1rel
 local clonefunction, cloneref = clonefunction or LPH_NO_VIRTUALIZE(function(...) return ... end), cloneref or LPH_NO_VIRTUALIZE(function(...) return ... end)
 
 local GameMetatable = getrawmetatable and getrawmetatable(game) or {
-    __index = LPH_NO_VIRTUALIZE(function(self, Index) return self[Index] end),
+    __index    = LPH_NO_VIRTUALIZE(function(self, Index) return self[Index] end),
     __newindex = LPH_NO_VIRTUALIZE(function(self, Index, Value) self[Index] = Value end)
 }
-
-local __index = GameMetatable.__index
+local __index    = GameMetatable.__index
 local __newindex = GameMetatable.__newindex
 local getrenderproperty, setrenderproperty = getrenderproperty or __index, setrenderproperty or __newindex
 
 local _GetService = __index(game, "GetService")
-local GetService = function(Service) return cloneref(_GetService(game, Service)) end
+local GetService  = function(s) return cloneref(_GetService(game, s)) end
 
-local RunService       = GetService("RunService")
-local UserInputService = GetService("UserInputService")
-local TweenService     = GetService("TweenService")
-local Players          = GetService("Players")
-local SoundService     = GetService("SoundService")
+local RunService         = GetService("RunService")
+local UserInputService   = GetService("UserInputService")
+local TweenService       = GetService("TweenService")
+local Players            = GetService("Players")
+local SoundService       = GetService("SoundService")
 
-local LocalPlayer     = __index(Players, "LocalPlayer")
-local Camera          = __index(workspace, "CurrentCamera")
-
-local FindFirstChild, FindFirstChildOfClass = __index(game, "FindFirstChild"), __index(game, "FindFirstChildOfClass")
-local GetDescendants  = __index(game, "GetDescendants")
-local WorldToViewportPoint  = __index(Camera, "WorldToViewportPoint")
+local LocalPlayer            = __index(Players, "LocalPlayer")
+local Camera                 = __index(workspace, "CurrentCamera")
+local FindFirstChild         = __index(game, "FindFirstChild")
+local FindFirstChildOfClass  = __index(game, "FindFirstChildOfClass")
+local GetDescendants         = __index(game, "GetDescendants")
+local WorldToViewportPoint   = __index(Camera, "WorldToViewportPoint")
 local GetPartsObscuringTarget = __index(Camera, "GetPartsObscuringTarget")
-local GetMouseLocation = __index(UserInputService, "GetMouseLocation")
-local GetPlayers       = __index(Players, "GetPlayers")
+local GetMouseLocation       = __index(UserInputService, "GetMouseLocation")
+local GetPlayers             = __index(Players, "GetPlayers")
 local GetPlayerFromCharacter = __index(Players, "GetPlayerFromCharacter")
-local Mouse            = __index(LocalPlayer, "GetMouse")(LocalPlayer)
-local CameraViewportSize = __index(Camera, "ViewportSize")
+local Mouse                  = __index(LocalPlayer, "GetMouse")(LocalPlayer)
+local CameraViewportSize     = __index(Camera, "ViewportSize")
 
-local RequiredDistance, Typing, Running, ServiceConnections, Animation, OriginalSensitivity = 2000, false, false, {}
+local Typing, Running, ServiceConnections, Animation, OriginalSensitivity = false, false, {}
 local Connect, Disconnect = __index(game, "DescendantAdded").Connect
-
 do
     local tmp = Connect(__index(game, "DescendantAdded"), function() end)
-    Disconnect = tmp.Disconnect
-    Disconnect(tmp)
+    Disconnect = tmp.Disconnect; Disconnect(tmp)
 end
 
 -- ============================================================
 -- CLEANUP
 -- ============================================================
-
-if _G.CopAlarmConnection then _G.CopAlarmConnection:Disconnect() end
-if _G.CopAlarmSound then _G.CopAlarmSound:Stop(); _G.CopAlarmSound:Destroy() end
-if LocalPlayer.PlayerGui:FindFirstChild("ExzzecutGUI") then
-    LocalPlayer.PlayerGui.ExzzecutGUI:Destroy()
-end
+if _G.CopAlarmConnection    then _G.CopAlarmConnection:Disconnect() end
+if _G.CopAlarmSound         then _G.CopAlarmSound:Stop(); _G.CopAlarmSound:Destroy() end
+if _G.ExzzecutESPConn       then _G.ExzzecutESPConn:Disconnect() end
+if _G.ExzzecutWSConn        then _G.ExzzecutWSConn:Disconnect() end
+if _G.ExzzecutJPConn        then _G.ExzzecutJPConn:Disconnect() end
+if _G.ExzzecutVFConn        then _G.ExzzecutVFConn:Disconnect() end
+pcall(function() if LocalPlayer.PlayerGui:FindFirstChild("ExzzecutGUI") then LocalPlayer.PlayerGui.ExzzecutGUI:Destroy() end end)
+pcall(function() if game:GetService("CoreGui"):FindFirstChild("ExzzecutGUI") then game:GetService("CoreGui").ExzzecutGUI:Destroy() end end)
 if getgenv().ExunysDeveloperAimbot then
     pcall(function() getgenv().ExunysDeveloperAimbot:Exit() end)
 end
@@ -70,580 +69,451 @@ end
 -- ============================================================
 -- COP ALARM CONFIG + SOUND
 -- ============================================================
-
-local copConfig = {
-    enabled  = false,
-    radius   = 300,
-    soundId  = "18980441222",
-}
-
+local copConfig = { enabled = false, radius = 300, soundId = "18980441222" }
 local copSound = Instance.new("Sound")
-copSound.SoundId  = "rbxassetid://" .. copConfig.soundId
-copSound.Volume   = 1
-copSound.Looped   = true
-copSound.Parent   = SoundService
-_G.CopAlarmSound  = copSound
+copSound.SoundId = "rbxassetid://" .. copConfig.soundId
+copSound.Volume  = 1; copSound.Looped = true; copSound.Parent = SoundService
+_G.CopAlarmSound = copSound
 
 -- ============================================================
--- MAIN GUI
+-- GUI
 -- ============================================================
-
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name           = "ExzzecutGUI"
-screenGui.ResetOnSpawn   = false
+screenGui.Name = "ExzzecutGUI"; screenGui.ResetOnSpawn = false
 screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-pcall(function() screenGui.Parent = game:GetService("CoreGui") end)
-if not screenGui.Parent then screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
+local ok = pcall(function() screenGui.Parent = game:GetService("CoreGui") end)
+if not ok or not screenGui.Parent then screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
 
 -- Главный фрейм
 local frame = Instance.new("Frame")
-frame.Name            = "MainFrame"
-frame.Size            = UDim2.new(0, 300, 0, 340)
-frame.Position        = UDim2.new(0.5, -150, 0.5, -170)
+frame.Name = "MainFrame"
+frame.Size = UDim2.new(0, 300, 0, 385)
+frame.Position = UDim2.new(0.5, -150, 0.5, -192)
 frame.BackgroundColor3 = Color3fromRGB(15, 15, 20)
-frame.BorderSizePixel = 0
-frame.Active          = true
-frame.Draggable       = true
-frame.Parent          = screenGui
+frame.BorderSizePixel = 0; frame.Active = true; frame.Draggable = true
+frame.Parent = screenGui
 Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 12)
 
 -- Заголовок
 local titleBar = Instance.new("Frame")
-titleBar.Size             = UDim2.new(1, 0, 0, 38)
+titleBar.Size = UDim2.new(1, 0, 0, 36)
 titleBar.BackgroundColor3 = Color3fromRGB(25, 25, 40)
-titleBar.BorderSizePixel  = 0
-titleBar.Parent           = frame
+titleBar.BorderSizePixel = 0; titleBar.Parent = frame
 Instance.new("UICorner", titleBar).CornerRadius = UDim.new(0, 12)
 
 local titleLabel = Instance.new("TextLabel")
-titleLabel.Size              = UDim2.new(1, 0, 1, 0)
+titleLabel.Size = UDim2.new(1, 0, 1, 0)
 titleLabel.BackgroundTransparency = 1
-titleLabel.Text              = "⚡ Exzzecut Jailbreak Hack"
-titleLabel.TextColor3        = Color3fromRGB(255, 220, 80)
-titleLabel.TextSize          = 15
-titleLabel.Font              = Enum.Font.GothamBold
-titleLabel.Parent            = titleBar
+titleLabel.Text = "⚡ Exzzecut Jailbreak Hack"
+titleLabel.TextColor3 = Color3fromRGB(255, 220, 80)
+titleLabel.TextSize = 15; titleLabel.Font = Enum.Font.GothamBold
+titleLabel.Parent = titleBar
 
--- Таб-кнопки
-local TAB_Y = 42
+-- Ряд табов 1 (y=38)
 local tabBtnCopAlarm = Instance.new("TextButton")
-tabBtnCopAlarm.Size             = UDim2.new(0.5, -6, 0, 28)
-tabBtnCopAlarm.Position         = UDim2.new(0, 4, 0, TAB_Y)
+tabBtnCopAlarm.Size = UDim2.new(0.5, -6, 0, 26)
+tabBtnCopAlarm.Position = UDim2.new(0, 4, 0, 38)
 tabBtnCopAlarm.BackgroundColor3 = Color3fromRGB(200, 60, 60)
-tabBtnCopAlarm.BorderSizePixel  = 0
-tabBtnCopAlarm.Text             = "🚨 Cop Alarm"
-tabBtnCopAlarm.TextColor3       = Color3fromRGB(255, 255, 255)
-tabBtnCopAlarm.TextSize         = 13
-tabBtnCopAlarm.Font             = Enum.Font.GothamBold
-tabBtnCopAlarm.Parent           = frame
+tabBtnCopAlarm.BorderSizePixel = 0
+tabBtnCopAlarm.Text = "🚨 Cop Alarm"
+tabBtnCopAlarm.TextColor3 = Color3fromRGB(255, 255, 255)
+tabBtnCopAlarm.TextSize = 13; tabBtnCopAlarm.Font = Enum.Font.GothamBold
+tabBtnCopAlarm.Parent = frame
 Instance.new("UICorner", tabBtnCopAlarm).CornerRadius = UDim.new(0, 7)
 
 local tabBtnAimbot = Instance.new("TextButton")
-tabBtnAimbot.Size             = UDim2.new(0.5, -6, 0, 28)
-tabBtnAimbot.Position         = UDim2.new(0.5, 2, 0, TAB_Y)
+tabBtnAimbot.Size = UDim2.new(0.5, -6, 0, 26)
+tabBtnAimbot.Position = UDim2.new(0.5, 2, 0, 38)
 tabBtnAimbot.BackgroundColor3 = Color3fromRGB(40, 40, 60)
-tabBtnAimbot.BorderSizePixel  = 0
-tabBtnAimbot.Text             = "🎯 Aimbot"
-tabBtnAimbot.TextColor3       = Color3fromRGB(180, 180, 255)
-tabBtnAimbot.TextSize         = 13
-tabBtnAimbot.Font             = Enum.Font.GothamBold
-tabBtnAimbot.Parent           = frame
+tabBtnAimbot.BorderSizePixel = 0
+tabBtnAimbot.Text = "🎯 Aimbot"
+tabBtnAimbot.TextColor3 = Color3fromRGB(180, 180, 255)
+tabBtnAimbot.TextSize = 13; tabBtnAimbot.Font = Enum.Font.GothamBold
+tabBtnAimbot.Parent = frame
 Instance.new("UICorner", tabBtnAimbot).CornerRadius = UDim.new(0, 7)
 
--- Меняем размер главного фрейма
-frame.Size = UDim2.new(0, 300, 0, 360)
-frame.Position = UDim2.new(0.5, -150, 0.5, -180)
-
--- Таб ESP
+-- Ряд табов 2 (y=68)
 local tabBtnESP = Instance.new("TextButton")
-tabBtnESP.Size             = UDim2.new(0.5, -6, 0, 28)
-tabBtnESP.Position         = UDim2.new(0, 4, 0, TAB_Y + 32)
+tabBtnESP.Size = UDim2.new(0.5, -6, 0, 26)
+tabBtnESP.Position = UDim2.new(0, 4, 0, 68)
 tabBtnESP.BackgroundColor3 = Color3fromRGB(40, 40, 60)
-tabBtnESP.BorderSizePixel  = 0
-tabBtnESP.Text             = "👁 ESP"
-tabBtnESP.TextColor3       = Color3fromRGB(180, 255, 180)
-tabBtnESP.TextSize         = 13
-tabBtnESP.Font             = Enum.Font.GothamBold
-tabBtnESP.Parent           = frame
+tabBtnESP.BorderSizePixel = 0
+tabBtnESP.Text = "👁 ESP"
+tabBtnESP.TextColor3 = Color3fromRGB(180, 255, 180)
+tabBtnESP.TextSize = 13; tabBtnESP.Font = Enum.Font.GothamBold
+tabBtnESP.Parent = frame
 Instance.new("UICorner", tabBtnESP).CornerRadius = UDim.new(0, 7)
 
--- Таб Player Mods
 local tabBtnMods = Instance.new("TextButton")
-tabBtnMods.Size             = UDim2.new(0.5, -6, 0, 28)
-tabBtnMods.Position         = UDim2.new(0.5, 2, 0, TAB_Y + 32)
+tabBtnMods.Size = UDim2.new(0.5, -6, 0, 26)
+tabBtnMods.Position = UDim2.new(0.5, 2, 0, 68)
 tabBtnMods.BackgroundColor3 = Color3fromRGB(40, 40, 60)
-tabBtnMods.BorderSizePixel  = 0
-tabBtnMods.Text             = "⚙ Mods"
-tabBtnMods.TextColor3       = Color3fromRGB(255, 200, 100)
-tabBtnMods.TextSize         = 13
-tabBtnMods.Font             = Enum.Font.GothamBold
-tabBtnMods.Parent           = frame
+tabBtnMods.BorderSizePixel = 0
+tabBtnMods.Text = "⚙ Mods"
+tabBtnMods.TextColor3 = Color3fromRGB(255, 200, 100)
+tabBtnMods.TextSize = 13; tabBtnMods.Font = Enum.Font.GothamBold
+tabBtnMods.Parent = frame
 Instance.new("UICorner", tabBtnMods).CornerRadius = UDim.new(0, 7)
 
--- Сдвигаем divider вниз
-divider.Position = UDim2.new(0, 10, 0, 107)
-
--- Все панели теперь начинаются ниже
-panelCopAlarm.Position = UDim2.new(0, 0, 0, 112)
-panelAimbot.Position   = UDim2.new(0, 0, 0, 112)
 -- Разделитель
 local divider = Instance.new("Frame")
-divider.Size             = UDim2.new(1, -20, 0, 1)
-divider.Position         = UDim2.new(0, 10, 0, 75)
+divider.Size = UDim2.new(1, -20, 0, 1)
+divider.Position = UDim2.new(0, 10, 0, 98)
 divider.BackgroundColor3 = Color3fromRGB(50, 50, 70)
-divider.BorderSizePixel  = 0
-divider.Parent           = frame
+divider.BorderSizePixel = 0; divider.Parent = frame
+
+-- Все панели начинаются с y=102
+local PANEL_Y = 102
 
 -- ============================================================
 -- PANEL: COP ALARM
 -- ============================================================
-
 local panelCopAlarm = Instance.new("Frame")
-panelCopAlarm.Size             = UDim2.new(1, 0, 1, -80)
-panelCopAlarm.Position         = UDim2.new(0, 0, 0, 80)
+panelCopAlarm.Size = UDim2.new(1, 0, 1, -PANEL_Y)
+panelCopAlarm.Position = UDim2.new(0, 0, 0, PANEL_Y)
 panelCopAlarm.BackgroundTransparency = 1
-panelCopAlarm.Visible          = true
-panelCopAlarm.Parent           = frame
+panelCopAlarm.Visible = true; panelCopAlarm.Parent = frame
 
--- Статус
 local caStatusLabel = Instance.new("TextLabel")
-caStatusLabel.Size              = UDim2.new(1, -20, 0, 22)
-caStatusLabel.Position          = UDim2.new(0, 10, 0, 5)
+caStatusLabel.Size = UDim2.new(1, -20, 0, 22)
+caStatusLabel.Position = UDim2.new(0, 10, 0, 5)
 caStatusLabel.BackgroundTransparency = 1
-caStatusLabel.Text              = "Status: OFF"
-caStatusLabel.TextColor3        = Color3fromRGB(255, 80, 80)
-caStatusLabel.TextSize          = 13
-caStatusLabel.Font              = Enum.Font.Gotham
-caStatusLabel.TextXAlignment    = Enum.TextXAlignment.Left
-caStatusLabel.Parent            = panelCopAlarm
+caStatusLabel.Text = "Status: OFF"
+caStatusLabel.TextColor3 = Color3fromRGB(255, 80, 80)
+caStatusLabel.TextSize = 13; caStatusLabel.Font = Enum.Font.Gotham
+caStatusLabel.TextXAlignment = Enum.TextXAlignment.Left
+caStatusLabel.Parent = panelCopAlarm
 
--- Дистанция
 local caDistLabel = Instance.new("TextLabel")
-caDistLabel.Size              = UDim2.new(1, -20, 0, 20)
-caDistLabel.Position          = UDim2.new(0, 10, 0, 30)
+caDistLabel.Size = UDim2.new(1, -20, 0, 20)
+caDistLabel.Position = UDim2.new(0, 10, 0, 30)
 caDistLabel.BackgroundTransparency = 1
-caDistLabel.Text              = "Nearest cop: -"
-caDistLabel.TextColor3        = Color3fromRGB(160, 160, 255)
-caDistLabel.TextSize          = 12
-caDistLabel.Font              = Enum.Font.Gotham
-caDistLabel.TextXAlignment    = Enum.TextXAlignment.Left
-caDistLabel.Parent            = panelCopAlarm
+caDistLabel.Text = "Nearest cop: —"
+caDistLabel.TextColor3 = Color3fromRGB(160, 160, 255)
+caDistLabel.TextSize = 12; caDistLabel.Font = Enum.Font.Gotham
+caDistLabel.TextXAlignment = Enum.TextXAlignment.Left
+caDistLabel.Parent = panelCopAlarm
 
--- Sound ID label
 local caSoundLabel = Instance.new("TextLabel")
-caSoundLabel.Size              = UDim2.new(1, -20, 0, 16)
-caSoundLabel.Position          = UDim2.new(0, 10, 0, 58)
+caSoundLabel.Size = UDim2.new(1, -20, 0, 16)
+caSoundLabel.Position = UDim2.new(0, 10, 0, 58)
 caSoundLabel.BackgroundTransparency = 1
-caSoundLabel.Text              = "Sound ID:"
-caSoundLabel.TextColor3        = Color3fromRGB(180, 180, 180)
-caSoundLabel.TextSize          = 12
-caSoundLabel.Font              = Enum.Font.Gotham
-caSoundLabel.TextXAlignment    = Enum.TextXAlignment.Left
-caSoundLabel.Parent            = panelCopAlarm
+caSoundLabel.Text = "Sound ID:"
+caSoundLabel.TextColor3 = Color3fromRGB(180, 180, 180)
+caSoundLabel.TextSize = 12; caSoundLabel.Font = Enum.Font.Gotham
+caSoundLabel.TextXAlignment = Enum.TextXAlignment.Left
+caSoundLabel.Parent = panelCopAlarm
 
--- Sound input
 local caSoundInput = Instance.new("TextBox")
-caSoundInput.Size             = UDim2.new(1, -20, 0, 28)
-caSoundInput.Position         = UDim2.new(0, 10, 0, 76)
+caSoundInput.Size = UDim2.new(1, -20, 0, 28)
+caSoundInput.Position = UDim2.new(0, 10, 0, 76)
 caSoundInput.BackgroundColor3 = Color3fromRGB(30, 30, 40)
-caSoundInput.BorderSizePixel  = 0
-caSoundInput.Text             = copConfig.soundId
-caSoundInput.TextColor3       = Color3fromRGB(255, 255, 255)
-caSoundInput.PlaceholderText  = "Type Sound ID..."
+caSoundInput.BorderSizePixel = 0; caSoundInput.Text = copConfig.soundId
+caSoundInput.TextColor3 = Color3fromRGB(255, 255, 255)
+caSoundInput.PlaceholderText = "Enter Sound ID..."
 caSoundInput.PlaceholderColor3 = Color3fromRGB(100, 100, 100)
-caSoundInput.TextSize         = 13
-caSoundInput.Font             = Enum.Font.Gotham
-caSoundInput.ClearTextOnFocus = false
-caSoundInput.Parent           = panelCopAlarm
+caSoundInput.TextSize = 13; caSoundInput.Font = Enum.Font.Gotham
+caSoundInput.ClearTextOnFocus = false; caSoundInput.Parent = panelCopAlarm
 Instance.new("UICorner", caSoundInput).CornerRadius = UDim.new(0, 6)
 
--- Radius label
 local caRadiusLabel = Instance.new("TextLabel")
-caRadiusLabel.Size              = UDim2.new(1, -20, 0, 16)
-caRadiusLabel.Position          = UDim2.new(0, 10, 0, 112)
+caRadiusLabel.Size = UDim2.new(1, -20, 0, 16)
+caRadiusLabel.Position = UDim2.new(0, 10, 0, 112)
 caRadiusLabel.BackgroundTransparency = 1
-caRadiusLabel.Text              = "Radius (in studs)" .. copConfig.radius
-caRadiusLabel.TextColor3        = Color3fromRGB(180, 180, 180)
-caRadiusLabel.TextSize          = 12
-caRadiusLabel.Font              = Enum.Font.Gotham
-caRadiusLabel.TextXAlignment    = Enum.TextXAlignment.Left
-caRadiusLabel.Parent            = panelCopAlarm
+caRadiusLabel.Text = "Radius: " .. copConfig.radius .. " studs"
+caRadiusLabel.TextColor3 = Color3fromRGB(180, 180, 180)
+caRadiusLabel.TextSize = 12; caRadiusLabel.Font = Enum.Font.Gotham
+caRadiusLabel.TextXAlignment = Enum.TextXAlignment.Left
+caRadiusLabel.Parent = panelCopAlarm
 
--- Radius input
 local caRadiusInput = Instance.new("TextBox")
-caRadiusInput.Size             = UDim2.new(1, -20, 0, 28)
-caRadiusInput.Position         = UDim2.new(0, 10, 0, 130)
+caRadiusInput.Size = UDim2.new(1, -20, 0, 28)
+caRadiusInput.Position = UDim2.new(0, 10, 0, 130)
 caRadiusInput.BackgroundColor3 = Color3fromRGB(30, 30, 40)
-caRadiusInput.BorderSizePixel  = 0
-caRadiusInput.Text             = tostring(copConfig.radius)
-caRadiusInput.TextColor3       = Color3fromRGB(255, 255, 255)
-caRadiusInput.PlaceholderText  = "Enter radius..."
+caRadiusInput.BorderSizePixel = 0; caRadiusInput.Text = tostring(copConfig.radius)
+caRadiusInput.TextColor3 = Color3fromRGB(255, 255, 255)
+caRadiusInput.PlaceholderText = "Enter radius..."
 caRadiusInput.PlaceholderColor3 = Color3fromRGB(100, 100, 100)
-caRadiusInput.TextSize         = 13
-caRadiusInput.Font             = Enum.Font.Gotham
-caRadiusInput.ClearTextOnFocus = false
-caRadiusInput.Parent           = panelCopAlarm
+caRadiusInput.TextSize = 13; caRadiusInput.Font = Enum.Font.Gotham
+caRadiusInput.ClearTextOnFocus = false; caRadiusInput.Parent = panelCopAlarm
 Instance.new("UICorner", caRadiusInput).CornerRadius = UDim.new(0, 6)
 
--- Toggle кнопка
 local caToggleBtn = Instance.new("TextButton")
-caToggleBtn.Size             = UDim2.new(1, -20, 0, 32)
-caToggleBtn.Position         = UDim2.new(0, 10, 0, 170)
+caToggleBtn.Size = UDim2.new(1, -20, 0, 32)
+caToggleBtn.Position = UDim2.new(0, 10, 0, 168)
 caToggleBtn.BackgroundColor3 = Color3fromRGB(60, 60, 80)
-caToggleBtn.BorderSizePixel  = 0
-caToggleBtn.Text             = "▶ TURN ON"
-caToggleBtn.TextColor3       = Color3fromRGB(255, 255, 255)
-caToggleBtn.TextSize         = 14
-caToggleBtn.Font             = Enum.Font.GothamBold
-caToggleBtn.Parent           = panelCopAlarm
+caToggleBtn.BorderSizePixel = 0; caToggleBtn.Text = "▶ TURN ON"
+caToggleBtn.TextColor3 = Color3fromRGB(255, 255, 255)
+caToggleBtn.TextSize = 14; caToggleBtn.Font = Enum.Font.GothamBold
+caToggleBtn.Parent = panelCopAlarm
 Instance.new("UICorner", caToggleBtn).CornerRadius = UDim.new(0, 6)
 
 -- ============================================================
 -- PANEL: AIMBOT
 -- ============================================================
-
 local panelAimbot = Instance.new("Frame")
-panelAimbot.Size             = UDim2.new(1, 0, 1, -80)
-panelAimbot.Position         = UDim2.new(0, 0, 0, 80)
+panelAimbot.Size = UDim2.new(1, 0, 1, -PANEL_Y)
+panelAimbot.Position = UDim2.new(0, 0, 0, PANEL_Y)
 panelAimbot.BackgroundTransparency = 1
-panelAimbot.Visible          = false
-panelAimbot.Parent           = frame
+panelAimbot.Visible = false; panelAimbot.Parent = frame
 
-local panelESP = Instance.new("Frame")
-panelESP.Size             = UDim2.new(1, 0, 1, -112)
-panelESP.Position         = UDim2.new(0, 0, 0, 112)
-panelESP.BackgroundTransparency = 1
-panelESP.Visible          = false
-panelESP.Parent           = frame
-
--- Статус ESP
-local espStatusLabel = Instance.new("TextLabel")
-espStatusLabel.Size              = UDim2.new(1, -20, 0, 22)
-espStatusLabel.Position          = UDim2.new(0, 10, 0, 5)
-espStatusLabel.BackgroundTransparency = 1
-espStatusLabel.Text              = "ESP: ВЫКЛ"
-espStatusLabel.TextColor3        = Color3fromRGB(255, 80, 80)
-espStatusLabel.TextSize          = 13
-espStatusLabel.Font              = Enum.Font.Gotham
-espStatusLabel.TextXAlignment    = Enum.TextXAlignment.Left
-espStatusLabel.Parent            = panelESP
-
--- Toggle ESP
-local espToggleBtn = Instance.new("TextButton")
-espToggleBtn.Size             = UDim2.new(1, -20, 0, 30)
-espToggleBtn.Position         = UDim2.new(0, 10, 0, 32)
-espToggleBtn.BackgroundColor3 = Color3fromRGB(60, 60, 80)
-espToggleBtn.BorderSizePixel  = 0
-espToggleBtn.Text             = "▶ ВКЛЮЧИТЬ ESP"
-espToggleBtn.TextColor3       = Color3fromRGB(255, 255, 255)
-espToggleBtn.TextSize         = 14
-espToggleBtn.Font             = Enum.Font.GothamBold
-espToggleBtn.Parent           = panelESP
-Instance.new("UICorner", espToggleBtn).CornerRadius = UDim.new(0, 6)
-
--- Показывать имя
-local espNamesBtn = Instance.new("TextButton")
-espNamesBtn.Size             = UDim2.new(1, -20, 0, 26)
-espNamesBtn.Position         = UDim2.new(0, 10, 0, 68)
-espNamesBtn.BackgroundColor3 = Color3fromRGB(50, 160, 90)
-espNamesBtn.BorderSizePixel  = 0
-espNamesBtn.Text             = "🏷 Имена: ВКЛ"
-espNamesBtn.TextColor3       = Color3fromRGB(255, 255, 255)
-espNamesBtn.TextSize         = 13
-espNamesBtn.Font             = Enum.Font.GothamBold
-espNamesBtn.Parent           = panelESP
-Instance.new("UICorner", espNamesBtn).CornerRadius = UDim.new(0, 6)
-
--- Показывать дистанцию
-local espDistBtn = Instance.new("TextButton")
-espDistBtn.Size             = UDim2.new(1, -20, 0, 26)
-espDistBtn.Position         = UDim2.new(0, 10, 0, 100)
-espDistBtn.BackgroundColor3 = Color3fromRGB(50, 100, 160)
-espDistBtn.BorderSizePixel  = 0
-espDistBtn.Text             = "📏 Дистанция: ВКЛ"
-espDistBtn.TextColor3       = Color3fromRGB(255, 255, 255)
-espDistBtn.TextSize         = 13
-espDistBtn.Font             = Enum.Font.GothamBold
-espDistBtn.Parent           = panelESP
-Instance.new("UICorner", espDistBtn).CornerRadius = UDim.new(0, 6)
-
--- Цвет команды
-local espTeamColorBtn = Instance.new("TextButton")
-espTeamColorBtn.Size             = UDim2.new(1, -20, 0, 26)
-espTeamColorBtn.Position         = UDim2.new(0, 10, 0, 132)
-espTeamColorBtn.BackgroundColor3 = Color3fromRGB(100, 50, 160)
-espTeamColorBtn.BorderSizePixel  = 0
-espTeamColorBtn.Text             = "🎨 Цвет по команде: ВЫКЛ"
-espTeamColorBtn.TextColor3       = Color3fromRGB(255, 255, 255)
-espTeamColorBtn.TextSize         = 13
-espTeamColorBtn.Font             = Enum.Font.GothamBold
-espTeamColorBtn.Parent           = panelESP
-Instance.new("UICorner", espTeamColorBtn).CornerRadius = UDim.new(0, 6)
-
-local panelMods = Instance.new("Frame")
-panelMods.Size             = UDim2.new(1, 0, 1, -112)
-panelMods.Position         = UDim2.new(0, 0, 0, 112)
-panelMods.BackgroundTransparency = 1
-panelMods.Visible          = false
-panelMods.Parent           = frame
-
--- WalkSpeed label
-local wsLabel = Instance.new("TextLabel")
-wsLabel.Size              = UDim2.new(1, -20, 0, 16)
-wsLabel.Position          = UDim2.new(0, 10, 0, 5)
-wsLabel.BackgroundTransparency = 1
-wsLabel.Text              = "WalkSpeed (default 16):"
-wsLabel.TextColor3        = Color3fromRGB(180, 180, 180)
-wsLabel.TextSize          = 12
-wsLabel.Font              = Enum.Font.Gotham
-wsLabel.TextXAlignment    = Enum.TextXAlignment.Left
-wsLabel.Parent            = panelMods
-
-local wsInput = Instance.new("TextBox")
-wsInput.Size             = UDim2.new(0.6, 0, 0, 26)
-wsInput.Position         = UDim2.new(0, 10, 0, 23)
-wsInput.BackgroundColor3 = Color3fromRGB(30, 30, 40)
-wsInput.BorderSizePixel  = 0
-wsInput.Text             = "16"
-wsInput.TextColor3       = Color3fromRGB(255, 255, 255)
-wsInput.TextSize         = 13
-wsInput.Font             = Enum.Font.Gotham
-wsInput.ClearTextOnFocus = false
-wsInput.Parent           = panelMods
-Instance.new("UICorner", wsInput).CornerRadius = UDim.new(0, 6)
-
-local wsToggleBtn = Instance.new("TextButton")
-wsToggleBtn.Size             = UDim2.new(0.35, 0, 0, 26)
-wsToggleBtn.Position         = UDim2.new(0.63, 0, 0, 23)
-wsToggleBtn.BackgroundColor3 = Color3fromRGB(60, 60, 80)
-wsToggleBtn.BorderSizePixel  = 0
-wsToggleBtn.Text             = "SET"
-wsToggleBtn.TextColor3       = Color3fromRGB(255, 255, 255)
-wsToggleBtn.TextSize         = 13
-wsToggleBtn.Font             = Enum.Font.GothamBold
-wsToggleBtn.Parent           = panelMods
-Instance.new("UICorner", wsToggleBtn).CornerRadius = UDim.new(0, 6)
-
--- JumpPower label
-local jpLabel = Instance.new("TextLabel")
-jpLabel.Size              = UDim2.new(1, -20, 0, 16)
-jpLabel.Position          = UDim2.new(0, 10, 0, 58)
-jpLabel.BackgroundTransparency = 1
-jpLabel.Text              = "JumpPower (default 50):"
-jpLabel.TextColor3        = Color3fromRGB(180, 180, 180)
-jpLabel.TextSize          = 12
-jpLabel.Font              = Enum.Font.Gotham
-jpLabel.TextXAlignment    = Enum.TextXAlignment.Left
-jpLabel.Parent            = panelMods
-
-local jpInput = Instance.new("TextBox")
-jpInput.Size             = UDim2.new(0.6, 0, 0, 26)
-jpInput.Position         = UDim2.new(0, 10, 0, 76)
-jpInput.BackgroundColor3 = Color3fromRGB(30, 30, 40)
-jpInput.BorderSizePixel  = 0
-jpInput.Text             = "50"
-jpInput.TextColor3       = Color3fromRGB(255, 255, 255)
-jpInput.TextSize         = 13
-jpInput.Font             = Enum.Font.Gotham
-jpInput.ClearTextOnFocus = false
-jpInput.Parent           = panelMods
-Instance.new("UICorner", jpInput).CornerRadius = UDim.new(0, 6)
-
-local jpToggleBtn = Instance.new("TextButton")
-jpToggleBtn.Size             = UDim2.new(0.35, 0, 0, 26)
-jpToggleBtn.Position         = UDim2.new(0.63, 0, 0, 76)
-jpToggleBtn.BackgroundColor3 = Color3fromRGB(60, 60, 80)
-jpToggleBtn.BorderSizePixel  = 0
-jpToggleBtn.Text             = "SET"
-jpToggleBtn.TextColor3       = Color3fromRGB(255, 255, 255)
-jpToggleBtn.TextSize         = 13
-jpToggleBtn.Font             = Enum.Font.GothamBold
-jpToggleBtn.Parent           = panelMods
-Instance.new("UICorner", jpToggleBtn).CornerRadius = UDim.new(0, 6)
-
--- VehicleFly label
-local vfLabel = Instance.new("TextLabel")
-vfLabel.Size              = UDim2.new(1, -20, 0, 16)
-vfLabel.Position          = UDim2.new(0, 10, 0, 111)
-vfLabel.BackgroundTransparency = 1
-vfLabel.Text              = "VehicleFly скорость:"
-vfLabel.TextColor3        = Color3fromRGB(180, 180, 180)
-vfLabel.TextSize          = 12
-vfLabel.Font              = Enum.Font.Gotham
-vfLabel.TextXAlignment    = Enum.TextXAlignment.Left
-vfLabel.Parent            = panelMods
-
-local vfInput = Instance.new("TextBox")
-vfInput.Size             = UDim2.new(0.6, 0, 0, 26)
-vfInput.Position         = UDim2.new(0, 10, 0, 129)
-vfInput.BackgroundColor3 = Color3fromRGB(30, 30, 40)
-vfInput.BorderSizePixel  = 0
-vfInput.Text             = "100"
-vfInput.TextColor3       = Color3fromRGB(255, 255, 255)
-vfInput.TextSize         = 13
-vfInput.Font             = Enum.Font.Gotham
-vfInput.ClearTextOnFocus = false
-vfInput.Parent           = panelMods
-Instance.new("UICorner", vfInput).CornerRadius = UDim.new(0, 6)
-
-local vfToggleBtn = Instance.new("TextButton")
-vfToggleBtn.Size             = UDim2.new(0.35, 0, 0, 26)
-vfToggleBtn.Position         = UDim2.new(0.63, 0, 0, 129)
-vfToggleBtn.BackgroundColor3 = Color3fromRGB(60, 60, 80)
-vfToggleBtn.BorderSizePixel  = 0
-vfToggleBtn.Text             = "▶ FLY"
-vfToggleBtn.TextColor3       = Color3fromRGB(255, 255, 255)
-vfToggleBtn.TextSize         = 13
-vfToggleBtn.Font             = Enum.Font.GothamBold
-vfToggleBtn.Parent           = panelMods
-Instance.new("UICorner", vfToggleBtn).CornerRadius = UDim.new(0, 6)
-
--- Статус aimbot
 local abStatusLabel = Instance.new("TextLabel")
-abStatusLabel.Size              = UDim2.new(1, -110, 0, 22)
-abStatusLabel.Position          = UDim2.new(0, 10, 0, 5)
+abStatusLabel.Size = UDim2.new(1, -110, 0, 22)
+abStatusLabel.Position = UDim2.new(0, 10, 0, 5)
 abStatusLabel.BackgroundTransparency = 1
-abStatusLabel.Text              = "Aimbot: ON"
-abStatusLabel.TextColor3        = Color3fromRGB(100, 255, 100)
-abStatusLabel.TextSize          = 14
-abStatusLabel.Font              = Enum.Font.Gotham
-abStatusLabel.TextXAlignment    = Enum.TextXAlignment.Left
-abStatusLabel.Parent            = panelAimbot
+abStatusLabel.Text = "Aimbot: ON"
+abStatusLabel.TextColor3 = Color3fromRGB(100, 255, 100)
+abStatusLabel.TextSize = 14; abStatusLabel.Font = Enum.Font.Gotham
+abStatusLabel.TextXAlignment = Enum.TextXAlignment.Left
+abStatusLabel.Parent = panelAimbot
 
 local abToggleBtn = Instance.new("TextButton")
-abToggleBtn.Size             = UDim2.new(0, 85, 0, 24)
-abToggleBtn.Position         = UDim2.new(1, -95, 0, 5)
+abToggleBtn.Size = UDim2.new(0, 85, 0, 24)
+abToggleBtn.Position = UDim2.new(1, -95, 0, 5)
 abToggleBtn.BackgroundColor3 = Color3fromRGB(80, 200, 120)
-abToggleBtn.BorderSizePixel  = 0
-abToggleBtn.Text             = "Toggle"
-abToggleBtn.TextColor3       = Color3fromRGB(255, 255, 255)
-abToggleBtn.TextSize         = 13
-abToggleBtn.Font             = Enum.Font.GothamBold
-abToggleBtn.Parent           = panelAimbot
+abToggleBtn.BorderSizePixel = 0; abToggleBtn.Text = "Toggle"
+abToggleBtn.TextColor3 = Color3fromRGB(255, 255, 255)
+abToggleBtn.TextSize = 13; abToggleBtn.Font = Enum.Font.GothamBold
+abToggleBtn.Parent = panelAimbot
 Instance.new("UICorner", abToggleBtn).CornerRadius = UDim.new(0, 6)
 
--- Players toggle
 local abPlayersBtn = Instance.new("TextButton")
-abPlayersBtn.Size             = UDim2.new(1, -20, 0, 26)
-abPlayersBtn.Position         = UDim2.new(0, 10, 0, 34)
+abPlayersBtn.Size = UDim2.new(1, -20, 0, 26)
+abPlayersBtn.Position = UDim2.new(0, 10, 0, 34)
 abPlayersBtn.BackgroundColor3 = Color3fromRGB(50, 160, 90)
-abPlayersBtn.BorderSizePixel  = 0
-abPlayersBtn.Text             = "👤 Players: ON"
-abPlayersBtn.TextColor3       = Color3fromRGB(255, 255, 255)
-abPlayersBtn.TextSize         = 13
-abPlayersBtn.Font             = Enum.Font.GothamBold
-abPlayersBtn.Parent           = panelAimbot
+abPlayersBtn.BorderSizePixel = 0; abPlayersBtn.Text = "👤 Players: ON"
+abPlayersBtn.TextColor3 = Color3fromRGB(255, 255, 255)
+abPlayersBtn.TextSize = 13; abPlayersBtn.Font = Enum.Font.GothamBold
+abPlayersBtn.Parent = panelAimbot
 Instance.new("UICorner", abPlayersBtn).CornerRadius = UDim.new(0, 6)
 
--- Bots toggle
 local abBotsBtn = Instance.new("TextButton")
-abBotsBtn.Size             = UDim2.new(1, -20, 0, 26)
-abBotsBtn.Position         = UDim2.new(0, 10, 0, 65)
+abBotsBtn.Size = UDim2.new(1, -20, 0, 26)
+abBotsBtn.Position = UDim2.new(0, 10, 0, 65)
 abBotsBtn.BackgroundColor3 = Color3fromRGB(160, 100, 50)
-abBotsBtn.BorderSizePixel  = 0
-abBotsBtn.Text             = "🤖 Bots/NPC's: OFF"
-abBotsBtn.TextColor3       = Color3fromRGB(255, 255, 255)
-abBotsBtn.TextSize         = 13
-abBotsBtn.Font             = Enum.Font.GothamBold
-abBotsBtn.Parent           = panelAimbot
+abBotsBtn.BorderSizePixel = 0; abBotsBtn.Text = "🤖 Bots/NPC: OFF"
+abBotsBtn.TextColor3 = Color3fromRGB(255, 255, 255)
+abBotsBtn.TextSize = 13; abBotsBtn.Font = Enum.Font.GothamBold
+abBotsBtn.Parent = panelAimbot
 Instance.new("UICorner", abBotsBtn).CornerRadius = UDim.new(0, 6)
 
--- FOV label
 local abFovLabel = Instance.new("TextLabel")
-abFovLabel.Size              = UDim2.new(1, -20, 0, 18)
-abFovLabel.Position          = UDim2.new(0, 10, 0, 98)
+abFovLabel.Size = UDim2.new(1, -20, 0, 18)
+abFovLabel.Position = UDim2.new(0, 10, 0, 98)
 abFovLabel.BackgroundTransparency = 1
-abFovLabel.Text              = "FOV Radius: 180"
-abFovLabel.TextColor3        = Color3fromRGB(200, 200, 200)
-abFovLabel.TextSize          = 13
-abFovLabel.Font              = Enum.Font.Gotham
-abFovLabel.TextXAlignment    = Enum.TextXAlignment.Left
-abFovLabel.Parent            = panelAimbot
+abFovLabel.Text = "FOV Radius: 180"
+abFovLabel.TextColor3 = Color3fromRGB(200, 200, 200)
+abFovLabel.TextSize = 13; abFovLabel.Font = Enum.Font.Gotham
+abFovLabel.TextXAlignment = Enum.TextXAlignment.Left
+abFovLabel.Parent = panelAimbot
 
--- FOV Slider
 local abSliderBg = Instance.new("Frame")
-abSliderBg.Size             = UDim2.new(1, -20, 0, 12)
-abSliderBg.Position         = UDim2.new(0, 10, 0, 120)
+abSliderBg.Size = UDim2.new(1, -20, 0, 12)
+abSliderBg.Position = UDim2.new(0, 10, 0, 120)
 abSliderBg.BackgroundColor3 = Color3fromRGB(40, 40, 60)
-abSliderBg.BorderSizePixel  = 0
-abSliderBg.Parent           = panelAimbot
+abSliderBg.BorderSizePixel = 0; abSliderBg.Parent = panelAimbot
 Instance.new("UICorner", abSliderBg).CornerRadius = UDim.new(0, 6)
 
 local abSliderFill = Instance.new("Frame")
-abSliderFill.Size             = UDim2.new(180/600, 0, 1, 0)
+abSliderFill.Size = UDim2.new(180/600, 0, 1, 0)
 abSliderFill.BackgroundColor3 = Color3fromRGB(130, 100, 255)
-abSliderFill.BorderSizePixel  = 0
-abSliderFill.Parent           = abSliderBg
+abSliderFill.BorderSizePixel = 0; abSliderFill.Parent = abSliderBg
 Instance.new("UICorner", abSliderFill).CornerRadius = UDim.new(0, 6)
 
--- Mode
 local abModeLabel = Instance.new("TextLabel")
-abModeLabel.Size              = UDim2.new(1, -20, 0, 18)
-abModeLabel.Position          = UDim2.new(0, 10, 0, 138)
+abModeLabel.Size = UDim2.new(1, -20, 0, 18)
+abModeLabel.Position = UDim2.new(0, 10, 0, 138)
 abModeLabel.BackgroundTransparency = 1
-abModeLabel.Text              = "Mode: 3D Distance 🌍"
-abModeLabel.TextColor3        = Color3fromRGB(150, 200, 255)
-abModeLabel.TextSize          = 12
-abModeLabel.Font              = Enum.Font.Gotham
-abModeLabel.TextXAlignment    = Enum.TextXAlignment.Left
-abModeLabel.Parent            = panelAimbot
+abModeLabel.Text = "Mode: 3D Distance 🌍"
+abModeLabel.TextColor3 = Color3fromRGB(150, 200, 255)
+abModeLabel.TextSize = 12; abModeLabel.Font = Enum.Font.Gotham
+abModeLabel.TextXAlignment = Enum.TextXAlignment.Left
+abModeLabel.Parent = panelAimbot
 
--- Lock target
 local abLockLabel = Instance.new("TextLabel")
-abLockLabel.Size              = UDim2.new(1, -20, 0, 18)
-abLockLabel.Position          = UDim2.new(0, 10, 0, 158)
+abLockLabel.Size = UDim2.new(1, -20, 0, 18)
+abLockLabel.Position = UDim2.new(0, 10, 0, 158)
 abLockLabel.BackgroundTransparency = 1
-abLockLabel.Text              = "Target: None"
-abLockLabel.TextColor3        = Color3fromRGB(255, 150, 150)
-abLockLabel.TextSize          = 12
-abLockLabel.Font              = Enum.Font.Gotham
-abLockLabel.TextXAlignment    = Enum.TextXAlignment.Left
-abLockLabel.Parent            = panelAimbot
+abLockLabel.Text = "Target: None"
+abLockLabel.TextColor3 = Color3fromRGB(255, 150, 150)
+abLockLabel.TextSize = 12; abLockLabel.Font = Enum.Font.Gotham
+abLockLabel.TextXAlignment = Enum.TextXAlignment.Left
+abLockLabel.Parent = panelAimbot
+
+-- ============================================================
+-- PANEL: ESP
+-- ============================================================
+local panelESP = Instance.new("Frame")
+panelESP.Size = UDim2.new(1, 0, 1, -PANEL_Y)
+panelESP.Position = UDim2.new(0, 0, 0, PANEL_Y)
+panelESP.BackgroundTransparency = 1
+panelESP.Visible = false; panelESP.Parent = frame
+
+local espStatusLabel = Instance.new("TextLabel")
+espStatusLabel.Size = UDim2.new(1, -20, 0, 22)
+espStatusLabel.Position = UDim2.new(0, 10, 0, 5)
+espStatusLabel.BackgroundTransparency = 1
+espStatusLabel.Text = "ESP: OFF"
+espStatusLabel.TextColor3 = Color3fromRGB(255, 80, 80)
+espStatusLabel.TextSize = 13; espStatusLabel.Font = Enum.Font.Gotham
+espStatusLabel.TextXAlignment = Enum.TextXAlignment.Left
+espStatusLabel.Parent = panelESP
+
+local espToggleBtn = Instance.new("TextButton")
+espToggleBtn.Size = UDim2.new(1, -20, 0, 30)
+espToggleBtn.Position = UDim2.new(0, 10, 0, 32)
+espToggleBtn.BackgroundColor3 = Color3fromRGB(60, 60, 80)
+espToggleBtn.BorderSizePixel = 0; espToggleBtn.Text = "▶ TURN ON ESP"
+espToggleBtn.TextColor3 = Color3fromRGB(255, 255, 255)
+espToggleBtn.TextSize = 14; espToggleBtn.Font = Enum.Font.GothamBold
+espToggleBtn.Parent = panelESP
+Instance.new("UICorner", espToggleBtn).CornerRadius = UDim.new(0, 6)
+
+local espNamesBtn = Instance.new("TextButton")
+espNamesBtn.Size = UDim2.new(1, -20, 0, 26)
+espNamesBtn.Position = UDim2.new(0, 10, 0, 70)
+espNamesBtn.BackgroundColor3 = Color3fromRGB(50, 160, 90)
+espNamesBtn.BorderSizePixel = 0; espNamesBtn.Text = "🏷 Names: ON"
+espNamesBtn.TextColor3 = Color3fromRGB(255, 255, 255)
+espNamesBtn.TextSize = 13; espNamesBtn.Font = Enum.Font.GothamBold
+espNamesBtn.Parent = panelESP
+Instance.new("UICorner", espNamesBtn).CornerRadius = UDim.new(0, 6)
+
+local espDistBtn = Instance.new("TextButton")
+espDistBtn.Size = UDim2.new(1, -20, 0, 26)
+espDistBtn.Position = UDim2.new(0, 10, 0, 102)
+espDistBtn.BackgroundColor3 = Color3fromRGB(50, 100, 160)
+espDistBtn.BorderSizePixel = 0; espDistBtn.Text = "📏 Distance: ON"
+espDistBtn.TextColor3 = Color3fromRGB(255, 255, 255)
+espDistBtn.TextSize = 13; espDistBtn.Font = Enum.Font.GothamBold
+espDistBtn.Parent = panelESP
+Instance.new("UICorner", espDistBtn).CornerRadius = UDim.new(0, 6)
+
+local espTeamColorBtn = Instance.new("TextButton")
+espTeamColorBtn.Size = UDim2.new(1, -20, 0, 26)
+espTeamColorBtn.Position = UDim2.new(0, 10, 0, 134)
+espTeamColorBtn.BackgroundColor3 = Color3fromRGB(60, 60, 80)
+espTeamColorBtn.BorderSizePixel = 0; espTeamColorBtn.Text = "🎨 Team Color: OFF"
+espTeamColorBtn.TextColor3 = Color3fromRGB(255, 255, 255)
+espTeamColorBtn.TextSize = 13; espTeamColorBtn.Font = Enum.Font.GothamBold
+espTeamColorBtn.Parent = panelESP
+Instance.new("UICorner", espTeamColorBtn).CornerRadius = UDim.new(0, 6)
+
+-- ============================================================
+-- PANEL: MODS
+-- ============================================================
+local panelMods = Instance.new("Frame")
+panelMods.Size = UDim2.new(1, 0, 1, -PANEL_Y)
+panelMods.Position = UDim2.new(0, 0, 0, PANEL_Y)
+panelMods.BackgroundTransparency = 1
+panelMods.Visible = false; panelMods.Parent = frame
+
+local wsLabel = Instance.new("TextLabel")
+wsLabel.Size = UDim2.new(1, -20, 0, 16)
+wsLabel.Position = UDim2.new(0, 10, 0, 5)
+wsLabel.BackgroundTransparency = 1; wsLabel.Text = "WalkSpeed (default 16):"
+wsLabel.TextColor3 = Color3fromRGB(180, 180, 180)
+wsLabel.TextSize = 12; wsLabel.Font = Enum.Font.Gotham
+wsLabel.TextXAlignment = Enum.TextXAlignment.Left; wsLabel.Parent = panelMods
+
+local wsInput = Instance.new("TextBox")
+wsInput.Size = UDim2.new(0.6, 0, 0, 26); wsInput.Position = UDim2.new(0, 10, 0, 23)
+wsInput.BackgroundColor3 = Color3fromRGB(30, 30, 40); wsInput.BorderSizePixel = 0
+wsInput.Text = "16"; wsInput.TextColor3 = Color3fromRGB(255, 255, 255)
+wsInput.TextSize = 13; wsInput.Font = Enum.Font.Gotham
+wsInput.ClearTextOnFocus = false; wsInput.Parent = panelMods
+Instance.new("UICorner", wsInput).CornerRadius = UDim.new(0, 6)
+
+local wsToggleBtn = Instance.new("TextButton")
+wsToggleBtn.Size = UDim2.new(0.35, 0, 0, 26); wsToggleBtn.Position = UDim2.new(0.63, 0, 0, 23)
+wsToggleBtn.BackgroundColor3 = Color3fromRGB(60, 60, 80); wsToggleBtn.BorderSizePixel = 0
+wsToggleBtn.Text = "SET"; wsToggleBtn.TextColor3 = Color3fromRGB(255, 255, 255)
+wsToggleBtn.TextSize = 13; wsToggleBtn.Font = Enum.Font.GothamBold; wsToggleBtn.Parent = panelMods
+Instance.new("UICorner", wsToggleBtn).CornerRadius = UDim.new(0, 6)
+
+local jpLabel = Instance.new("TextLabel")
+jpLabel.Size = UDim2.new(1, -20, 0, 16); jpLabel.Position = UDim2.new(0, 10, 0, 58)
+jpLabel.BackgroundTransparency = 1; jpLabel.Text = "JumpPower (default 50):"
+jpLabel.TextColor3 = Color3fromRGB(180, 180, 180)
+jpLabel.TextSize = 12; jpLabel.Font = Enum.Font.Gotham
+jpLabel.TextXAlignment = Enum.TextXAlignment.Left; jpLabel.Parent = panelMods
+
+local jpInput = Instance.new("TextBox")
+jpInput.Size = UDim2.new(0.6, 0, 0, 26); jpInput.Position = UDim2.new(0, 10, 0, 76)
+jpInput.BackgroundColor3 = Color3fromRGB(30, 30, 40); jpInput.BorderSizePixel = 0
+jpInput.Text = "50"; jpInput.TextColor3 = Color3fromRGB(255, 255, 255)
+jpInput.TextSize = 13; jpInput.Font = Enum.Font.Gotham
+jpInput.ClearTextOnFocus = false; jpInput.Parent = panelMods
+Instance.new("UICorner", jpInput).CornerRadius = UDim.new(0, 6)
+
+local jpToggleBtn = Instance.new("TextButton")
+jpToggleBtn.Size = UDim2.new(0.35, 0, 0, 26); jpToggleBtn.Position = UDim2.new(0.63, 0, 0, 76)
+jpToggleBtn.BackgroundColor3 = Color3fromRGB(60, 60, 80); jpToggleBtn.BorderSizePixel = 0
+jpToggleBtn.Text = "SET"; jpToggleBtn.TextColor3 = Color3fromRGB(255, 255, 255)
+jpToggleBtn.TextSize = 13; jpToggleBtn.Font = Enum.Font.GothamBold; jpToggleBtn.Parent = panelMods
+Instance.new("UICorner", jpToggleBtn).CornerRadius = UDim.new(0, 6)
+
+local vfLabel = Instance.new("TextLabel")
+vfLabel.Size = UDim2.new(1, -20, 0, 16); vfLabel.Position = UDim2.new(0, 10, 0, 112)
+vfLabel.BackgroundTransparency = 1; vfLabel.Text = "VehicleFly speed:"
+vfLabel.TextColor3 = Color3fromRGB(180, 180, 180)
+vfLabel.TextSize = 12; vfLabel.Font = Enum.Font.Gotham
+vfLabel.TextXAlignment = Enum.TextXAlignment.Left; vfLabel.Parent = panelMods
+
+local vfInput = Instance.new("TextBox")
+vfInput.Size = UDim2.new(0.6, 0, 0, 26); vfInput.Position = UDim2.new(0, 10, 0, 130)
+vfInput.BackgroundColor3 = Color3fromRGB(30, 30, 40); vfInput.BorderSizePixel = 0
+vfInput.Text = "100"; vfInput.TextColor3 = Color3fromRGB(255, 255, 255)
+vfInput.TextSize = 13; vfInput.Font = Enum.Font.Gotham
+vfInput.ClearTextOnFocus = false; vfInput.Parent = panelMods
+Instance.new("UICorner", vfInput).CornerRadius = UDim.new(0, 6)
+
+local vfToggleBtn = Instance.new("TextButton")
+vfToggleBtn.Size = UDim2.new(0.35, 0, 0, 26); vfToggleBtn.Position = UDim2.new(0.63, 0, 0, 130)
+vfToggleBtn.BackgroundColor3 = Color3fromRGB(60, 60, 80); vfToggleBtn.BorderSizePixel = 0
+vfToggleBtn.Text = "▶ FLY"; vfToggleBtn.TextColor3 = Color3fromRGB(255, 255, 255)
+vfToggleBtn.TextSize = 13; vfToggleBtn.Font = Enum.Font.GothamBold; vfToggleBtn.Parent = panelMods
+Instance.new("UICorner", vfToggleBtn).CornerRadius = UDim.new(0, 6)
 
 -- ============================================================
 -- TAB SWITCHING
 -- ============================================================
+local allPanels = {panelCopAlarm, panelAimbot, panelESP, panelMods}
+local allTabBtns = {tabBtnCopAlarm, tabBtnAimbot, tabBtnESP, tabBtnMods}
 
-local function switchTab(tab)
-    panelCopAlarm.Visible = false
-    panelAimbot.Visible   = false
-    panelESP.Visible      = false
-    panelMods.Visible     = false
-
-    -- сброс цветов всех табов
-    for _, btn in ipairs({tabBtnCopAlarm, tabBtnAimbot, tabBtnESP, tabBtnMods}) do
-        btn.BackgroundColor3 = Color3fromRGB(40, 40, 60)
-    end
-
-    if tab == "copalarm" then
-        panelCopAlarm.Visible       = true
-        tabBtnCopAlarm.BackgroundColor3 = Color3fromRGB(200, 60, 60)
-    elseif tab == "aimbot" then
-        panelAimbot.Visible         = true
-        tabBtnAimbot.BackgroundColor3   = Color3fromRGB(80, 80, 180)
-    elseif tab == "esp" then
-        panelESP.Visible            = true
-        tabBtnESP.BackgroundColor3  = Color3fromRGB(50, 160, 90)
-    elseif tab == "mods" then
-        panelMods.Visible           = true
-        tabBtnMods.BackgroundColor3 = Color3fromRGB(160, 110, 30)
-    end
+local function switchTab(targetPanel, activeBtn)
+    for _, p in ipairs(allPanels) do p.Visible = false end
+    for _, b in ipairs(allTabBtns) do b.BackgroundColor3 = Color3fromRGB(40, 40, 60) end
+    targetPanel.Visible = true
+    activeBtn.BackgroundColor3 = Color3fromRGB(100, 100, 180)
 end
 
-tabBtnCopAlarm.MouseButton1Click:Connect(function() switchTab("copalarm") end)
-tabBtnAimbot.MouseButton1Click:Connect(function() switchTab("aimbot") end)
-tabBtnESP.MouseButton1Click:Connect(function() switchTab("esp") end)
-tabBtnMods.MouseButton1Click:Connect(function() switchTab("mods") end)
-tabBtnCopAlarm.MouseButton1Click:Connect(function() switchTab("copalarm") end)
-tabBtnAimbot.MouseButton1Click:Connect(function() switchTab("aimbot") end)
+tabBtnCopAlarm.MouseButton1Click:Connect(function()
+    switchTab(panelCopAlarm, tabBtnCopAlarm)
+    tabBtnCopAlarm.BackgroundColor3 = Color3fromRGB(200, 60, 60)
+end)
+tabBtnAimbot.MouseButton1Click:Connect(function()
+    switchTab(panelAimbot, tabBtnAimbot)
+    tabBtnAimbot.BackgroundColor3 = Color3fromRGB(80, 80, 180)
+end)
+tabBtnESP.MouseButton1Click:Connect(function()
+    switchTab(panelESP, tabBtnESP)
+    tabBtnESP.BackgroundColor3 = Color3fromRGB(50, 160, 90)
+end)
+tabBtnMods.MouseButton1Click:Connect(function()
+    switchTab(panelMods, tabBtnMods)
+    tabBtnMods.BackgroundColor3 = Color3fromRGB(160, 110, 30)
+end)
+
+-- Активный таб по умолчанию
+tabBtnCopAlarm.BackgroundColor3 = Color3fromRGB(200, 60, 60)
 
 -- ============================================================
 -- COP ALARM LOGIC
 -- ============================================================
-
-local alarmPlaying  = false
-local CA_INTERVAL   = 0.5
-local caLastCheck   = 0
+local alarmPlaying = false
+local CA_INTERVAL  = 0.5
+local caLastCheck  = 0
 
 local function getMyPosition()
     local char = LocalPlayer.Character
@@ -657,9 +527,7 @@ local function isCop(player)
         local n = player.Team.Name:lower()
         if n:find("police") or n:find("cop") or n:find("officer") then return true end
     end
-    local ok, val = pcall(function()
-        return player:GetAttribute("Team") or player:GetAttribute("Role")
-    end)
+    local ok, val = pcall(function() return player:GetAttribute("Team") or player:GetAttribute("Role") end)
     if ok and val then
         local v = tostring(val):lower()
         if v:find("police") or v:find("cop") then return true end
@@ -669,32 +537,21 @@ end
 
 local function caApplySettings()
     local newId = caSoundInput.Text:match("%d+")
-    if newId then
-        copConfig.soundId   = newId
-        copSound.SoundId    = "rbxassetid://" .. newId
-    end
+    if newId then copConfig.soundId = newId; copSound.SoundId = "rbxassetid://" .. newId end
     local newR = tonumber(caRadiusInput.Text)
-    if newR and newR > 0 then
-        copConfig.radius    = newR
-        caRadiusLabel.Text  = "Радиус (студов): " .. newR
-    end
+    if newR and newR > 0 then copConfig.radius = newR; caRadiusLabel.Text = "Radius: " .. newR .. " studs" end
 end
 
 caToggleBtn.MouseButton1Click:Connect(function()
     caApplySettings()
     copConfig.enabled = not copConfig.enabled
     if copConfig.enabled then
-        caToggleBtn.Text             = "⏹ ВЫКЛЮЧИТЬ"
-        caToggleBtn.BackgroundColor3 = Color3fromRGB(200, 50, 50)
-        caStatusLabel.Text           = "Status: ON ✅"
-        caStatusLabel.TextColor3     = Color3fromRGB(80, 255, 80)
+        caToggleBtn.Text = "⏹ TURN OFF"; caToggleBtn.BackgroundColor3 = Color3fromRGB(200, 50, 50)
+        caStatusLabel.Text = "Status: ON ✅"; caStatusLabel.TextColor3 = Color3fromRGB(80, 255, 80)
     else
-        caToggleBtn.Text             = "▶ Turn ON"
-        caToggleBtn.BackgroundColor3 = Color3fromRGB(60, 60, 80)
-        caStatusLabel.Text           = "Status: OFF"
-        caStatusLabel.TextColor3     = Color3fromRGB(255, 80, 80)
-        caDistLabel.Text             = "Nearest cop: -"
-        caDistLabel.TextColor3       = Color3fromRGB(160, 160, 255)
+        caToggleBtn.Text = "▶ TURN ON"; caToggleBtn.BackgroundColor3 = Color3fromRGB(60, 60, 80)
+        caStatusLabel.Text = "Status: OFF"; caStatusLabel.TextColor3 = Color3fromRGB(255, 80, 80)
+        caDistLabel.Text = "Nearest cop: —"; caDistLabel.TextColor3 = Color3fromRGB(160, 160, 255)
         if alarmPlaying then copSound:Stop(); alarmPlaying = false end
     end
 end)
@@ -703,15 +560,12 @@ local copAlarmConn = RunService.Heartbeat:Connect(function()
     local now = tick()
     if now - caLastCheck < CA_INTERVAL then return end
     caLastCheck = now
-
     local myPos = getMyPosition()
     if not myPos then
-        caDistLabel.Text   = "Nearest cop: -"
-        caDistLabel.TextColor3 = Color3fromRGB(160, 160, 255)
+        caDistLabel.Text = "Nearest cop: —"; caDistLabel.TextColor3 = Color3fromRGB(160, 160, 255)
         if alarmPlaying then copSound:Stop(); alarmPlaying = false end
         return
     end
-
     local closestDist = math.huge
     for _, player in ipairs(Players:GetPlayers()) do
         if player == LocalPlayer then continue end
@@ -722,10 +576,8 @@ local copAlarmConn = RunService.Heartbeat:Connect(function()
             if d < closestDist then closestDist = d end
         end
     end
-
     if closestDist == math.huge then
-        caDistLabel.Text      = "Nearest cop: not found"
-        caDistLabel.TextColor3 = Color3fromRGB(160, 160, 255)
+        caDistLabel.Text = "Nearest cop: not found"; caDistLabel.TextColor3 = Color3fromRGB(160, 160, 255)
     else
         local dr = math.round(closestDist)
         if copConfig.enabled and closestDist < copConfig.radius then
@@ -735,396 +587,251 @@ local copAlarmConn = RunService.Heartbeat:Connect(function()
         else
             caDistLabel.TextColor3 = Color3fromRGB(160, 160, 255)
         end
-        caDistLabel.Text = "Nearest cop: " .. dr .. " ст."
+        caDistLabel.Text = "Nearest cop: " .. dr .. " st."
     end
-
     if not copConfig.enabled then
         if alarmPlaying then copSound:Stop(); alarmPlaying = false end
         return
     end
-
     local nearby = closestDist ~= math.huge and closestDist < copConfig.radius
     if nearby and not alarmPlaying then copSound:Play(); alarmPlaying = true
     elseif not nearby and alarmPlaying then copSound:Stop(); alarmPlaying = false end
 end)
-
 _G.CopAlarmConnection = copAlarmConn
 
 -- ============================================================
 -- ESP LOGIC
 -- ============================================================
-
-local espConfig = {
-    enabled   = false,
-    showNames = true,
-    showDist  = true,
-    teamColor = false,
-}
-
-local espObjects = {} -- [player] = {box, nameLabel, distLabel}
+local espConfig  = { enabled = false, showNames = true, showDist = true, teamColor = false }
+local espObjects = {}
 
 local function espGetColor(player)
-    if espConfig.teamColor and player.Team then
-        return player.Team.TeamColor.Color
-    end
+    if espConfig.teamColor and player.Team then return player.Team.TeamColor.Color end
     return Color3fromRGB(255, 80, 80)
 end
-
 local function espRemove(player)
     if espObjects[player] then
-        for _, obj in pairs(espObjects[player]) do
-            pcall(function() obj:Remove() end)
-        end
+        for _, obj in pairs(espObjects[player]) do pcall(function() obj:Remove() end) end
         espObjects[player] = nil
     end
 end
-
 local function espClear()
-    for player in pairs(espObjects) do
-        espRemove(player)
-    end
+    for player in pairs(espObjects) do espRemove(player) end
 end
-
 local function espCreate(player)
     if espObjects[player] then return end
-
     local box = Drawingnew("Square")
-    box.Visible     = false
-    box.Thickness   = 1.5
-    box.Filled      = false
-    box.Color       = espGetColor(player)
-
+    box.Visible = false; box.Thickness = 1.5; box.Filled = false; box.Color = espGetColor(player)
     local nameTag = Drawingnew("Text")
-    nameTag.Visible  = false
-    nameTag.Size     = 13
-    nameTag.Center   = true
-    nameTag.Outline  = true
-    nameTag.Color    = Color3fromRGB(255, 255, 255)
-    nameTag.Text     = player.Name
-
+    nameTag.Visible = false; nameTag.Size = 13; nameTag.Center = true
+    nameTag.Outline = true; nameTag.Color = Color3fromRGB(255, 255, 255); nameTag.Text = player.Name
     local distTag = Drawingnew("Text")
-    distTag.Visible  = false
-    distTag.Size     = 11
-    distTag.Center   = true
-    distTag.Outline  = true
-    distTag.Color    = Color3fromRGB(200, 200, 255)
-
+    distTag.Visible = false; distTag.Size = 11; distTag.Center = true
+    distTag.Outline = true; distTag.Color = Color3fromRGB(200, 200, 255)
     espObjects[player] = {box = box, nameTag = nameTag, distTag = distTag}
 end
 
--- Обновление ESP каждый RenderStepped
 local espConn = RunService.RenderStepped:Connect(function()
     if not espConfig.enabled then
         for _, objs in pairs(espObjects) do
-            objs.box.Visible     = false
-            objs.nameTag.Visible = false
-            objs.distTag.Visible = false
+            objs.box.Visible = false; objs.nameTag.Visible = false; objs.distTag.Visible = false
         end
         return
     end
-
     local myChar = LocalPlayer.Character
     local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
-
     for _, player in ipairs(Players:GetPlayers()) do
         if player == LocalPlayer then continue end
-
         local char = player.Character
         local root = char and char:FindFirstChild("HumanoidRootPart")
         local head = char and char:FindFirstChild("Head")
-
         if not root or not head then
             if espObjects[player] then
-                espObjects[player].box.Visible     = false
+                espObjects[player].box.Visible = false
                 espObjects[player].nameTag.Visible = false
                 espObjects[player].distTag.Visible = false
             end
             continue
         end
-
         espCreate(player)
         local objs = espObjects[player]
-
-        -- Позиции на экране
         local rootSV, rootOn = WorldToViewportPoint(Camera, root.Position)
-        local headSV, headOn = WorldToViewportPoint(Camera, head.Position + Vector3.new(0, 0.7, 0))
-
+        local headSV         = WorldToViewportPoint(Camera, head.Position + Vector3.new(0, 0.7, 0))
         if not rootOn then
-            objs.box.Visible     = false
-            objs.nameTag.Visible = false
-            objs.distTag.Visible = false
+            objs.box.Visible = false; objs.nameTag.Visible = false; objs.distTag.Visible = false
             continue
         end
-
-        -- Размер бокса через высоту персонажа
         local heightPx = math.abs(headSV.Y - rootSV.Y) * 2.2
         local widthPx  = heightPx * 0.55
-        local cx       = rootSV.X
-        local cy       = (headSV.Y + rootSV.Y) / 2
-
-        objs.box.Visible   = true
-        objs.box.Size      = Vector2new(widthPx, heightPx)
-        objs.box.Position  = Vector2new(cx - widthPx / 2, cy - heightPx / 2)
-        objs.box.Color     = espGetColor(player)
-
-        -- Имя
-        objs.nameTag.Visible   = espConfig.showNames
-        objs.nameTag.Position  = Vector2new(cx, cy - heightPx / 2 - 15)
-        objs.nameTag.Text      = player.Name
-
-        -- Дистанция
+        local cx = rootSV.X; local cy = (headSV.Y + rootSV.Y) / 2
+        objs.box.Visible = true
+        objs.box.Size    = Vector2new(widthPx, heightPx)
+        objs.box.Position = Vector2new(cx - widthPx/2, cy - heightPx/2)
+        objs.box.Color   = espGetColor(player)
+        objs.nameTag.Visible  = espConfig.showNames
+        objs.nameTag.Position = Vector2new(cx, cy - heightPx/2 - 15)
+        objs.nameTag.Text     = player.Name
         if espConfig.showDist and myRoot then
             local dist = math.round((root.Position - myRoot.Position).Magnitude)
             objs.distTag.Visible   = true
-            objs.distTag.Position  = Vector2new(cx, cy + heightPx / 2 + 2)
-            objs.distTag.Text      = dist .. " ст."
+            objs.distTag.Position  = Vector2new(cx, cy + heightPx/2 + 2)
+            objs.distTag.Text      = dist .. " st."
         else
             objs.distTag.Visible = false
         end
     end
-
-    -- Чистим вышедших игроков
     for player in pairs(espObjects) do
-        if not player or not player.Parent then
-            espRemove(player)
-        end
+        if not player or not player.Parent then espRemove(player) end
     end
 end)
+_G.ExzzecutESPConn = espConn
 
-Players.PlayerRemoving:Connect(function(player)
-    espRemove(player)
-end)
+Players.PlayerRemoving:Connect(function(player) espRemove(player) end)
 
--- ESP кнопки
 espToggleBtn.MouseButton1Click:Connect(function()
     espConfig.enabled = not espConfig.enabled
     if espConfig.enabled then
-        espToggleBtn.Text             = "⏹ ВЫКЛЮЧИТЬ ESP"
-        espToggleBtn.BackgroundColor3 = Color3fromRGB(200, 50, 50)
-        espStatusLabel.Text           = "ESP: ВКЛ ✅"
-        espStatusLabel.TextColor3     = Color3fromRGB(80, 255, 80)
+        espToggleBtn.Text = "⏹ TURN OFF ESP"; espToggleBtn.BackgroundColor3 = Color3fromRGB(200, 50, 50)
+        espStatusLabel.Text = "ESP: ON ✅"; espStatusLabel.TextColor3 = Color3fromRGB(80, 255, 80)
     else
-        espToggleBtn.Text             = "▶ ВКЛЮЧИТЬ ESP"
-        espToggleBtn.BackgroundColor3 = Color3fromRGB(60, 60, 80)
-        espStatusLabel.Text           = "ESP: ВЫКЛ"
-        espStatusLabel.TextColor3     = Color3fromRGB(255, 80, 80)
+        espToggleBtn.Text = "▶ TURN ON ESP"; espToggleBtn.BackgroundColor3 = Color3fromRGB(60, 60, 80)
+        espStatusLabel.Text = "ESP: OFF"; espStatusLabel.TextColor3 = Color3fromRGB(255, 80, 80)
     end
 end)
-
 espNamesBtn.MouseButton1Click:Connect(function()
     espConfig.showNames = not espConfig.showNames
-    espNamesBtn.Text             = espConfig.showNames and "🏷 Имена: ВКЛ" or "🏷 Имена: ВЫКЛ"
+    espNamesBtn.Text = espConfig.showNames and "🏷 Names: ON" or "🏷 Names: OFF"
     espNamesBtn.BackgroundColor3 = espConfig.showNames and Color3fromRGB(50, 160, 90) or Color3fromRGB(100, 50, 50)
 end)
-
 espDistBtn.MouseButton1Click:Connect(function()
     espConfig.showDist = not espConfig.showDist
-    espDistBtn.Text             = espConfig.showDist and "📏 Дистанция: ВКЛ" or "📏 Дистанция: ВЫКЛ"
+    espDistBtn.Text = espConfig.showDist and "📏 Distance: ON" or "📏 Distance: OFF"
     espDistBtn.BackgroundColor3 = espConfig.showDist and Color3fromRGB(50, 100, 160) or Color3fromRGB(100, 50, 50)
 end)
-
 espTeamColorBtn.MouseButton1Click:Connect(function()
     espConfig.teamColor = not espConfig.teamColor
-    espTeamColorBtn.Text             = espConfig.teamColor and "🎨 Цвет по команде: ВКЛ" or "🎨 Цвет по команде: ВЫКЛ"
+    espTeamColorBtn.Text = espConfig.teamColor and "🎨 Team Color: ON" or "🎨 Team Color: OFF"
     espTeamColorBtn.BackgroundColor3 = espConfig.teamColor and Color3fromRGB(100, 50, 160) or Color3fromRGB(60, 60, 80)
 end)
 
 -- ============================================================
 -- MODS LOGIC
 -- ============================================================
-
-local modsConfig = {
-    wsEnabled  = false,
-    wsValue    = 16,
-    jpEnabled  = false,
-    jpValue    = 50,
-    vfEnabled  = false,
-    vfValue    = 100,
-}
-
+local modsConfig     = { wsEnabled=false, wsValue=16, jpEnabled=false, jpValue=50, vfEnabled=false, vfValue=100 }
 local vfBodyVelocity = nil
 local vfBodyGyro     = nil
 
--- Loop WalkSpeed (как loopws в IY)
 local wsConn = RunService.Heartbeat:Connect(function()
     if not modsConfig.wsEnabled then return end
     local char = LocalPlayer.Character
     local hum  = char and char:FindFirstChildOfClass("Humanoid")
     if hum then hum.WalkSpeed = modsConfig.wsValue end
 end)
+_G.ExzzecutWSConn = wsConn
 
--- Loop JumpPower
 local jpConn = RunService.Heartbeat:Connect(function()
     if not modsConfig.jpEnabled then return end
     local char = LocalPlayer.Character
     local hum  = char and char:FindFirstChildOfClass("Humanoid")
     if hum then hum.JumpPower = modsConfig.jpValue end
 end)
+_G.ExzzecutJPConn = jpConn
 
--- VehicleFly loop
 local vfConn = RunService.Heartbeat:Connect(function()
     if not modsConfig.vfEnabled then return end
     local char = LocalPlayer.Character
     local root = char and char:FindFirstChild("HumanoidRootPart")
     if not root then return end
-
     if not vfBodyVelocity or not vfBodyVelocity.Parent then
         vfBodyVelocity = Instance.new("BodyVelocity")
-        vfBodyVelocity.MaxForce = Vector3.new(1e9, 1e9, 1e9)
-        vfBodyVelocity.Parent  = root
+        vfBodyVelocity.MaxForce = Vector3.new(1e9,1e9,1e9); vfBodyVelocity.Parent = root
     end
     if not vfBodyGyro or not vfBodyGyro.Parent then
         vfBodyGyro = Instance.new("BodyGyro")
-        vfBodyGyro.MaxTorque = Vector3.new(1e9, 1e9, 1e9)
-        vfBodyGyro.D         = 100
-        vfBodyGyro.Parent    = root
+        vfBodyGyro.MaxTorque = Vector3.new(1e9,1e9,1e9); vfBodyGyro.D = 100; vfBodyGyro.Parent = root
     end
-
-    local cam    = Camera.CFrame
-    local dir    = Vector3.new(0, 0, 0)
-    local UIS    = UserInputService
-
-    if UIS:IsKeyDown(Enum.KeyCode.W) then dir = dir + cam.LookVector end
-    if UIS:IsKeyDown(Enum.KeyCode.S) then dir = dir - cam.LookVector end
-    if UIS:IsKeyDown(Enum.KeyCode.A) then dir = dir - cam.RightVector end
-    if UIS:IsKeyDown(Enum.KeyCode.D) then dir = dir + cam.RightVector end
-    if UIS:IsKeyDown(Enum.KeyCode.Space) then dir = dir + Vector3.new(0, 1, 0) end
-    if UIS:IsKeyDown(Enum.KeyCode.LeftShift) then dir = dir - Vector3.new(0, 1, 0) end
-
-    if dir.Magnitude > 0 then
-        vfBodyVelocity.Velocity = dir.Unit * modsConfig.vfValue
-    else
-        vfBodyVelocity.Velocity = Vector3.zero
-    end
-
+    local cam = Camera.CFrame; local dir = Vector3.new(0,0,0)
+    if UserInputService:IsKeyDown(Enum.KeyCode.W)          then dir = dir + cam.LookVector end
+    if UserInputService:IsKeyDown(Enum.KeyCode.S)          then dir = dir - cam.LookVector end
+    if UserInputService:IsKeyDown(Enum.KeyCode.A)          then dir = dir - cam.RightVector end
+    if UserInputService:IsKeyDown(Enum.KeyCode.D)          then dir = dir + cam.RightVector end
+    if UserInputService:IsKeyDown(Enum.KeyCode.Space)      then dir = dir + Vector3.new(0,1,0) end
+    if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift)  then dir = dir - Vector3.new(0,1,0) end
+    vfBodyVelocity.Velocity = dir.Magnitude > 0 and dir.Unit * modsConfig.vfValue or Vector3.zero
     vfBodyGyro.CFrame = cam
 end)
+_G.ExzzecutVFConn = vfConn
 
 local function vfStop()
     if vfBodyVelocity and vfBodyVelocity.Parent then vfBodyVelocity:Destroy() end
-    if vfBodyGyro     and vfBodyGyro.Parent     then vfBodyGyro:Destroy()     end
-    vfBodyVelocity = nil
-    vfBodyGyro     = nil
+    if vfBodyGyro     and vfBodyGyro.Parent     then vfBodyGyro:Destroy() end
+    vfBodyVelocity = nil; vfBodyGyro = nil
 end
 
--- WalkSpeed кнопки
 wsToggleBtn.MouseButton1Click:Connect(function()
     local v = tonumber(wsInput.Text)
     if not v or v <= 0 then return end
-    modsConfig.wsValue   = v
-    modsConfig.wsEnabled = not modsConfig.wsEnabled
+    modsConfig.wsValue = v; modsConfig.wsEnabled = not modsConfig.wsEnabled
     if modsConfig.wsEnabled then
-        wsToggleBtn.Text             = "✓ " .. v
-        wsToggleBtn.BackgroundColor3 = Color3fromRGB(50, 160, 90)
+        wsToggleBtn.Text = "✓ " .. v; wsToggleBtn.BackgroundColor3 = Color3fromRGB(50, 160, 90)
     else
-        wsToggleBtn.Text             = "SET"
-        wsToggleBtn.BackgroundColor3 = Color3fromRGB(60, 60, 80)
-        -- сбрасываем скорость обратно
+        wsToggleBtn.Text = "SET"; wsToggleBtn.BackgroundColor3 = Color3fromRGB(60, 60, 80)
         local char = LocalPlayer.Character
         local hum  = char and char:FindFirstChildOfClass("Humanoid")
         if hum then hum.WalkSpeed = 16 end
     end
 end)
 
--- JumpPower кнопки
 jpToggleBtn.MouseButton1Click:Connect(function()
     local v = tonumber(jpInput.Text)
     if not v or v <= 0 then return end
-    modsConfig.jpValue   = v
-    modsConfig.jpEnabled = not modsConfig.jpEnabled
+    modsConfig.jpValue = v; modsConfig.jpEnabled = not modsConfig.jpEnabled
     if modsConfig.jpEnabled then
-        jpToggleBtn.Text             = "✓ " .. v
-        jpToggleBtn.BackgroundColor3 = Color3fromRGB(50, 160, 90)
+        jpToggleBtn.Text = "✓ " .. v; jpToggleBtn.BackgroundColor3 = Color3fromRGB(50, 160, 90)
     else
-        jpToggleBtn.Text             = "SET"
-        jpToggleBtn.BackgroundColor3 = Color3fromRGB(60, 60, 80)
+        jpToggleBtn.Text = "SET"; jpToggleBtn.BackgroundColor3 = Color3fromRGB(60, 60, 80)
         local char = LocalPlayer.Character
         local hum  = char and char:FindFirstChildOfClass("Humanoid")
         if hum then hum.JumpPower = 50 end
     end
 end)
 
--- VehicleFly кнопка
 vfToggleBtn.MouseButton1Click:Connect(function()
     local v = tonumber(vfInput.Text)
     if not v or v <= 0 then return end
-    modsConfig.vfValue   = v
-    modsConfig.vfEnabled = not modsConfig.vfEnabled
+    modsConfig.vfValue = v; modsConfig.vfEnabled = not modsConfig.vfEnabled
     if modsConfig.vfEnabled then
-        vfToggleBtn.Text             = "⏹ FLY"
-        vfToggleBtn.BackgroundColor3 = Color3fromRGB(200, 50, 50)
-        vfLabel.Text                 = "VehicleFly скорость: [WASD+Space/Shift]"
+        vfToggleBtn.Text = "⏹ FLY"; vfToggleBtn.BackgroundColor3 = Color3fromRGB(200, 50, 50)
+        vfLabel.Text = "VehicleFly: [WASD + Space/Shift]"
     else
-        vfToggleBtn.Text             = "▶ FLY"
-        vfToggleBtn.BackgroundColor3 = Color3fromRGB(60, 60, 80)
-        vfLabel.Text                 = "VehicleFly скорость:"
-        vfStop()
+        vfToggleBtn.Text = "▶ FLY"; vfToggleBtn.BackgroundColor3 = Color3fromRGB(60, 60, 80)
+        vfLabel.Text = "VehicleFly speed:"; vfStop()
     end
 end)
 
--- Сбрасываем fly при смерти
-LocalPlayer.CharacterAdded:Connect(function()
-    vfBodyVelocity = nil
-    vfBodyGyro     = nil
-end)
+LocalPlayer.CharacterAdded:Connect(function() vfBodyVelocity = nil; vfBodyGyro = nil end)
+
 -- ============================================================
 -- AIMBOT ENVIRONMENT
 -- ============================================================
-
 getgenv().ExunysDeveloperAimbot = {
-    DeveloperSettings = {
-        UpdateMode        = "RenderStepped",
-        TeamCheckOption   = "TeamColor",
-        RainbowSpeed      = 1,
-        DisableWarnings   = false
-    },
+    DeveloperSettings = { UpdateMode="RenderStepped", TeamCheckOption="TeamColor", RainbowSpeed=1, DisableWarnings=false },
     Settings = {
-        Enabled           = true,
-        AimPlayers        = true,
-        AimBots           = false,
-        TeamCheck         = false,
-        AliveCheck        = true,
-        WallCheck         = false,
-        OffsetToMoveDirection = false,
-        OffsetIncrement   = 15,
-        Sensitivity       = 0,
-        Sensitivity2      = 1,
-        LockMode          = 1,
-        LockPart          = "Head",
-        TriggerKey        = Enum.UserInputType.MouseButton2,
-        Toggle            = false
+        Enabled=true, AimPlayers=true, AimBots=false,
+        TeamCheck=false, AliveCheck=true, WallCheck=false,
+        OffsetToMoveDirection=false, OffsetIncrement=15,
+        Sensitivity=0, Sensitivity2=1, LockMode=1, LockPart="Head",
+        TriggerKey=Enum.UserInputType.MouseButton2, Toggle=false
     },
-    Triggerbot = {
-        Enabled     = false,
-        TeamCheck   = false,
-        AliveCheck  = true,
-        AimLockedCheck = false,
-        Delay       = 0
-    },
-    ClosestPlayerTracer = {
-        Enabled      = true,
-        Position     = 3,
-        Transparency = 0.5,
-        Thickness    = 1,
-        RainbowColor = false,
-        Color        = Color3fromRGB(150, 150, 255)
-    },
+    Triggerbot = { Enabled=false, TeamCheck=false, AliveCheck=true, AimLockedCheck=false, Delay=0 },
+    ClosestPlayerTracer = { Enabled=true, Position=3, Transparency=0.5, Thickness=1, RainbowColor=false, Color=Color3fromRGB(150,150,255) },
     FOVSettings = {
-        Enabled          = true,
-        Visible          = true,
-        Radius           = 180,
-        MaxWorldDistance = 500,
-        NumSides         = 60,
-        Thickness        = 1,
-        Transparency     = 1,
-        Filled           = false,
-        RainbowColor     = false,
-        RainbowOutlineColor = false,
-        Color            = Color3fromRGB(255, 255, 255),
-        OutlineColor     = Color3fromRGB(0, 0, 0),
-        LockedColor      = Color3fromRGB(255, 150, 150)
+        Enabled=true, Visible=true, Radius=180, MaxWorldDistance=500,
+        NumSides=60, Thickness=1, Transparency=1, Filled=false,
+        RainbowColor=false, RainbowOutlineColor=false,
+        Color=Color3fromRGB(255,255,255), OutlineColor=Color3fromRGB(0,0,0), LockedColor=Color3fromRGB(255,150,150)
     },
-    Blacklisted      = {},
+    Blacklisted={},
     FOVCircleOutline = Drawingnew("Circle"),
     FOVCircle        = Drawingnew("Circle"),
     Tracer           = Drawingnew("Line")
@@ -1132,28 +839,23 @@ getgenv().ExunysDeveloperAimbot = {
 
 local Environment, _warn = getgenv().ExunysDeveloperAimbot, clonefunction(warn)
 warn = function(...) return not Environment.DeveloperSettings.DisableWarnings and _warn(...) end
-
 repeat taskwait(0) until Environment and Environment.FOVCircle and Environment.FOVCircleOutline
-
 setrenderproperty(Environment.FOVCircle, "Visible", false)
 setrenderproperty(Environment.FOVCircleOutline, "Visible", false)
 
 -- ============================================================
 -- AIMBOT GUI TOGGLES
 -- ============================================================
-
 abToggleBtn.MouseButton1Click:Connect(function()
     Environment.Settings.Enabled = not Environment.Settings.Enabled
     if Environment.Settings.Enabled then
-        abStatusLabel.Text      = "Aimbot: ON"
-        abStatusLabel.TextColor3 = Color3fromRGB(100, 255, 100)
-        abToggleBtn.BackgroundColor3 = Color3fromRGB(80, 200, 120)
+        abStatusLabel.Text = "Aimbot: ON"; abStatusLabel.TextColor3 = Color3fromRGB(100,255,100)
+        abToggleBtn.BackgroundColor3 = Color3fromRGB(80,200,120)
         setrenderproperty(Environment.FOVCircle, "Visible", true)
         setrenderproperty(Environment.FOVCircleOutline, "Visible", true)
     else
-        abStatusLabel.Text      = "Aimbot: OFF"
-        abStatusLabel.TextColor3 = Color3fromRGB(255, 100, 100)
-        abToggleBtn.BackgroundColor3 = Color3fromRGB(200, 80, 80)
+        abStatusLabel.Text = "Aimbot: OFF"; abStatusLabel.TextColor3 = Color3fromRGB(255,100,100)
+        abToggleBtn.BackgroundColor3 = Color3fromRGB(200,80,80)
         setrenderproperty(Environment.FOVCircle, "Visible", false)
         setrenderproperty(Environment.FOVCircleOutline, "Visible", false)
     end
@@ -1161,424 +863,313 @@ end)
 
 abPlayersBtn.MouseButton1Click:Connect(function()
     Environment.Settings.AimPlayers = not Environment.Settings.AimPlayers
-    if Environment.Settings.AimPlayers then
-        abPlayersBtn.Text             = "👤 Players: ON"
-        abPlayersBtn.BackgroundColor3 = Color3fromRGB(50, 160, 90)
-    else
-        abPlayersBtn.Text             = "👤 Players: OFF"
-        abPlayersBtn.BackgroundColor3 = Color3fromRGB(100, 50, 50)
-    end
+    abPlayersBtn.Text = Environment.Settings.AimPlayers and "👤 Players: ON" or "👤 Players: OFF"
+    abPlayersBtn.BackgroundColor3 = Environment.Settings.AimPlayers and Color3fromRGB(50,160,90) or Color3fromRGB(100,50,50)
 end)
 
 abBotsBtn.MouseButton1Click:Connect(function()
     Environment.Settings.AimBots = not Environment.Settings.AimBots
-    if Environment.Settings.AimBots then
-        abBotsBtn.Text             = "🤖 Bots/NPC's: ON"
-        abBotsBtn.BackgroundColor3 = Color3fromRGB(50, 160, 90)
-    else
-        abBotsBtn.Text             = "🤖 Bots/NPC's: OFF"
-        abBotsBtn.BackgroundColor3 = Color3fromRGB(160, 100, 50)
-    end
+    abBotsBtn.Text = Environment.Settings.AimBots and "🤖 Bots/NPC: ON" or "🤖 Bots/NPC: OFF"
+    abBotsBtn.BackgroundColor3 = Environment.Settings.AimBots and Color3fromRGB(50,160,90) or Color3fromRGB(160,100,50)
 end)
 
--- FOV Slider
 local abSliderDragging = false
 local MIN_FOV, MAX_FOV = 30, 600
-
 local function UpdateSlider(inputX)
-    local bgPos  = abSliderBg.AbsolutePosition.X
-    local bgSize = abSliderBg.AbsoluteSize.X
-    local rel    = math.clamp((inputX - bgPos) / bgSize, 0, 1)
-    local newR   = math.floor(MIN_FOV + rel * (MAX_FOV - MIN_FOV))
+    local rel = math.clamp((inputX - abSliderBg.AbsolutePosition.X) / abSliderBg.AbsoluteSize.X, 0, 1)
+    local newR = math.floor(MIN_FOV + rel * (MAX_FOV - MIN_FOV))
     Environment.FOVSettings.Radius = newR
-    abFovLabel.Text  = "FOV Radius: " .. newR
+    abFovLabel.Text = "FOV Radius: " .. newR
     abSliderFill.Size = UDim2.new(rel, 0, 1, 0)
 end
-
-abSliderBg.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        abSliderDragging = true
-        UpdateSlider(input.Position.X)
-    end
+abSliderBg.InputBegan:Connect(function(i)
+    if i.UserInputType == Enum.UserInputType.MouseButton1 then abSliderDragging=true; UpdateSlider(i.Position.X) end
 end)
-abSliderBg.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        abSliderDragging = false
-    end
+abSliderBg.InputEnded:Connect(function(i)
+    if i.UserInputType == Enum.UserInputType.MouseButton1 then abSliderDragging=false end
 end)
-UserInputService.InputChanged:Connect(function(input)
-    if abSliderDragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-        UpdateSlider(input.Position.X)
-    end
+UserInputService.InputChanged:Connect(function(i)
+    if abSliderDragging and i.UserInputType == Enum.UserInputType.MouseMovement then UpdateSlider(i.Position.X) end
 end)
-UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        abSliderDragging = false
-    end
+UserInputService.InputEnded:Connect(function(i)
+    if i.UserInputType == Enum.UserInputType.MouseButton1 then abSliderDragging=false end
 end)
 
 -- ============================================================
 -- AIMBOT CORE
 -- ============================================================
-
 local FixUsername = LPH_NO_VIRTUALIZE(function(String)
     for _, Value in next, GetPlayers(Players) do
         local Name = __index(Value, "Name")
         if stringsub(stringlower(Name), 1, #String) == stringlower(String) then return Name end
     end
 end)
-
 local GetRainbowColor = LPH_NO_VIRTUALIZE(function()
     local s = Environment.DeveloperSettings.RainbowSpeed
     return Color3fromHSV(tick() % s / s, 1, 1)
 end)
-
-local ConvertVector = LPH_NO_VIRTUALIZE(function(Vector)
-    return Vector2new(Vector.X, Vector.Y)
-end)
-
+local ConvertVector = LPH_NO_VIRTUALIZE(function(V) return Vector2new(V.X, V.Y) end)
 local CancelLock = LPH_NO_VIRTUALIZE(function()
     Environment.Locked = nil
-    abLockLabel.Text      = "Target: None"
-    abLockLabel.TextColor3 = Color3fromRGB(255, 150, 150)
+    abLockLabel.Text = "Target: None"; abLockLabel.TextColor3 = Color3fromRGB(255,150,150)
     setrenderproperty(Environment.FOVCircle, "Color", Environment.FOVSettings.Color)
     __newindex(UserInputService, "MouseDeltaSensitivity", OriginalSensitivity)
     if Animation then Animation:Cancel() end
     setrenderproperty(Environment.Tracer, "Visible", Environment.ClosestPlayerTracer.Enabled)
 end)
 
--- кеш NPC
-local npcCache = {}
-local npcCacheTime = 0
-local NPC_CACHE_INTERVAL = 1
+local npcCache = {}; local npcCacheTime = 0; local NPC_CACHE_INTERVAL = 1
 
 local GetAllTargets = LPH_NO_VIRTUALIZE(function()
-    local Settings  = Environment.Settings
-    local LockPart  = Settings.LockPart
-    local TCOption  = Environment.DeveloperSettings.TeamCheckOption
-    local targets   = {}
-
+    local Settings = Environment.Settings
+    local LockPart = Settings.LockPart
+    local TCOption = Environment.DeveloperSettings.TeamCheckOption
+    local targets  = {}
     if Settings.AimPlayers then
         for _, Value in next, GetPlayers(Players) do
             local Character = __index(Value, "Character")
             local Humanoid  = Character and FindFirstChildOfClass(Character, "Humanoid")
-            if Value ~= LocalPlayer
-                and not tablefind(Environment.Blacklisted, __index(Value, "Name"))
-                and Character
-                and FindFirstChild(Character, LockPart)
-                and Humanoid
-            then
-                if Settings.TeamCheck and __index(Value, TCOption) == __index(LocalPlayer, TCOption) then continue end
-                if Settings.AliveCheck and __index(Humanoid, "Health") <= 0 then continue end
+            if Value ~= LocalPlayer and not tablefind(Environment.Blacklisted, __index(Value,"Name"))
+                and Character and FindFirstChild(Character, LockPart) and Humanoid then
+                if Settings.TeamCheck and __index(Value,TCOption) == __index(LocalPlayer,TCOption) then continue end
+                if Settings.AliveCheck and __index(Humanoid,"Health") <= 0 then continue end
                 if Settings.WallCheck then
-                    local pp = __index(Character[LockPart], "Position")
-                    local bl = GetDescendants(__index(LocalPlayer, "Character"))
-                    for _, d in next, GetDescendants(Character) do bl[#bl+1] = d end
-                    if #GetPartsObscuringTarget(Camera, {pp}, bl) > 0 then continue end
+                    local pp = __index(Character[LockPart],"Position")
+                    local bl = GetDescendants(__index(LocalPlayer,"Character"))
+                    for _, d in next, GetDescendants(Character) do bl[#bl+1]=d end
+                    if #GetPartsObscuringTarget(Camera,{pp},bl) > 0 then continue end
                 end
                 table.insert(targets, {type="player", object=Value, character=Character})
             end
         end
     end
-
     if Settings.AimBots then
         local now = tick()
-        -- обновляем кеш раз в секунду
         if now - npcCacheTime > NPC_CACHE_INTERVAL then
-            npcCacheTime = now
-            npcCache = {}
+            npcCacheTime = now; npcCache = {}
             local pChars = {}
-            for _, p in next, GetPlayers(Players) do
-                local c = __index(p, "Character")
-                if c then pChars[c] = true end
-            end
+            for _, p in next, GetPlayers(Players) do local c=__index(p,"Character"); if c then pChars[c]=true end end
             for _, obj in next, GetDescendants(workspace) do
                 if obj.ClassName == "Humanoid" then
                     local char = obj.Parent
                     if not pChars[char] then
-                        local part = FindFirstChild(char, LockPart) or FindFirstChild(char, "HumanoidRootPart")
-                        if part then
-                            table.insert(npcCache, {type="npc", object=obj, character=char, part=part})
-                        end
+                        local part = FindFirstChild(char,LockPart) or FindFirstChild(char,"HumanoidRootPart")
+                        if part then table.insert(npcCache, {type="npc",object=obj,character=char,part=part}) end
                     end
                 end
             end
         end
-
-        -- используем кеш
         for _, target in next, npcCache do
             local obj = target.object
-            if Settings.AliveCheck and (not obj or not obj.Parent or __index(obj, "Health") <= 0) then continue end
+            if Settings.AliveCheck and (not obj or not obj.Parent or __index(obj,"Health")<=0) then continue end
             if Settings.WallCheck then
                 local part = target.part
                 if not part or not part.Parent then continue end
-                local pp = __index(part, "Position")
-                local bl = GetDescendants(__index(LocalPlayer, "Character"))
-                if #GetPartsObscuringTarget(Camera, {pp}, bl) > 0 then continue end
+                local pp = __index(part,"Position")
+                local bl = GetDescendants(__index(LocalPlayer,"Character"))
+                if #GetPartsObscuringTarget(Camera,{pp},bl)>0 then continue end
             end
             table.insert(targets, target)
         end
     end
-
     return targets
 end)
 
 local GetTargetPart = LPH_NO_VIRTUALIZE(function(target)
-    if target.type == "player" then
-        return FindFirstChild(target.character, Environment.Settings.LockPart)
-    else
-        return target.part
-    end
+    if target.type == "player" then return FindFirstChild(target.character, Environment.Settings.LockPart)
+    else return target.part end
 end)
-
 local GetTargetName = LPH_NO_VIRTUALIZE(function(target)
-    if target.type == "player" then return __index(target.object, "Name")
+    if target.type == "player" then return __index(target.object,"Name")
     else return target.character.Name .. " [NPC]" end
 end)
 
 local GetClosestTarget = LPH_NO_VIRTUALIZE(function(Aux)
     local FOVSettings = Environment.FOVSettings
     local Settings    = Environment.Settings
-
     if not Environment.Locked or Aux then
-        local ScreenFOV     = FOVSettings.Enabled and FOVSettings.Radius or 2000
-        local Best3D        = math.huge
-        local BestTarget    = nil
-        local CameraPos     = __index(Camera, "CFrame").Position
-        local MousePos      = GetMouseLocation(UserInputService)
-
+        local ScreenFOV = FOVSettings.Enabled and FOVSettings.Radius or 2000
+        local Best3D = math.huge; local BestTarget = nil
+        local CameraPos = __index(Camera,"CFrame").Position
+        local MousePos  = GetMouseLocation(UserInputService)
         for _, target in next, GetAllTargets() do
-            local part = GetTargetPart(target)
-            if not part then continue end
-            local PartPos       = __index(part, "Position")
-            local ScreenVec, On = WorldToViewportPoint(Camera, PartPos)
-            if not On then continue end
-            local Dist2D = (MousePos - Vector2new(ScreenVec.X, ScreenVec.Y)).Magnitude
-            if Dist2D > ScreenFOV then continue end
+            local part = GetTargetPart(target); if not part then continue end
+            local PartPos = __index(part,"Position")
+            local SV, On = WorldToViewportPoint(Camera, PartPos); if not On then continue end
+            if (MousePos - Vector2new(SV.X,SV.Y)).Magnitude > ScreenFOV then continue end
             local D3 = (CameraPos - PartPos).Magnitude
-            if D3 < Best3D then Best3D = D3; BestTarget = target end
+            if D3 < Best3D then Best3D=D3; BestTarget=target end
         end
-
         if BestTarget then
             if not Aux then
-                Environment.Locked   = BestTarget
-                abLockLabel.Text      = "Target: " .. GetTargetName(BestTarget)
-                abLockLabel.TextColor3 = Color3fromRGB(100, 255, 100)
-            elseif not Running and not Environment.Locked then
-                return BestTarget
-            end
+                Environment.Locked = BestTarget
+                abLockLabel.Text = "Target: " .. GetTargetName(BestTarget)
+                abLockLabel.TextColor3 = Color3fromRGB(100,255,100)
+            elseif not Running and not Environment.Locked then return BestTarget end
         end
     else
         local locked     = Environment.Locked
-        local lockedChar = locked.character or (locked.type == "player" and __index(locked.object, "Character"))
-        if not lockedChar or not FindFirstChild(lockedChar, Settings.LockPart) then
-            CancelLock(); return
-        end
-        local LockedPos    = __index(lockedChar[Settings.LockPart], "Position")
-        local SV, On       = WorldToViewportPoint(Camera, LockedPos)
-        local MousePos     = GetMouseLocation(UserInputService)
-        local ScreenFOV    = FOVSettings.Enabled and FOVSettings.Radius or 2000
-        if not On or (MousePos - Vector2new(SV.X, SV.Y)).Magnitude > ScreenFOV then
-            CancelLock()
-        end
+        local lockedChar = locked.character or (locked.type=="player" and __index(locked.object,"Character"))
+        if not lockedChar or not FindFirstChild(lockedChar,Settings.LockPart) then CancelLock(); return end
+        local LockedPos = __index(lockedChar[Settings.LockPart],"Position")
+        local SV, On    = WorldToViewportPoint(Camera, LockedPos)
+        local MousePos  = GetMouseLocation(UserInputService)
+        local ScreenFOV = FOVSettings.Enabled and FOVSettings.Radius or 2000
+        if not On or (MousePos - Vector2new(SV.X,SV.Y)).Magnitude > ScreenFOV then CancelLock() end
     end
 end)
-
 local GetClosestPlayer = LPH_NO_VIRTUALIZE(function(Aux) return GetClosestTarget(Aux) end)
 
 -- ============================================================
 -- AIMBOT LOAD
 -- ============================================================
-
 local Load = function()
     OriginalSensitivity = __index(UserInputService, "MouseDeltaSensitivity")
-
-    local Settings      = Environment.Settings
-    local Triggerbot    = Environment.Triggerbot
-    local Tracer        = Environment.Tracer
-    local FOVCircle     = Environment.FOVCircle
+    local Settings         = Environment.Settings
+    local Triggerbot       = Environment.Triggerbot
+    local Tracer           = Environment.Tracer
+    local FOVCircle        = Environment.FOVCircle
     local FOVCircleOutline = Environment.FOVCircleOutline
-    local TracerSettings = Environment.ClosestPlayerTracer
-    local FOVSettings   = Environment.FOVSettings
-    local UpdateMode    = Environment.DeveloperSettings.UpdateMode
-    local TCOption      = Environment.DeveloperSettings.TeamCheckOption
+    local TracerSettings   = Environment.ClosestPlayerTracer
+    local FOVSettings      = Environment.FOVSettings
+    local UpdateMode       = Environment.DeveloperSettings.UpdateMode
+    local TCOption         = Environment.DeveloperSettings.TeamCheckOption
 
     if mouse1press and mouse1release then
-        ServiceConnections.Triggerbot = Connect(__index(RunService, UpdateMode), LPH_NO_VIRTUALIZE(function()
+        ServiceConnections.Triggerbot = Connect(__index(RunService,UpdateMode), LPH_NO_VIRTUALIZE(function()
             if Triggerbot.Enabled and Mouse.Target then
                 local Character = Mouse.Target.Parent
-                local Humanoid  = FindFirstChildOfClass(Character, "Humanoid")
-                local Player    = GetPlayerFromCharacter(Players, Character)
+                local Humanoid  = FindFirstChildOfClass(Character,"Humanoid")
+                local Player    = GetPlayerFromCharacter(Players,Character)
                 if Character and Humanoid and Player then
-                    if Triggerbot.TeamCheck and __index(Player, TCOption) == __index(LocalPlayer, TCOption) then return end
-                    if Triggerbot.AliveCheck and __index(Humanoid, "Health") <= 0 then return end
+                    if Triggerbot.TeamCheck and __index(Player,TCOption)==__index(LocalPlayer,TCOption) then return end
+                    if Triggerbot.AliveCheck and __index(Humanoid,"Health")<=0 then return end
                     if Triggerbot.AimLockedCheck and not Environment.Locked then return end
-                    if Triggerbot.Delay ~= 0 then taskwait(Triggerbot.Delay) end
-                    mouse1press(); __index(RunService, UpdateMode):Wait(); mouse1release(); mouse1click(); __index(RunService, UpdateMode):Wait()
+                    if Triggerbot.Delay~=0 then taskwait(Triggerbot.Delay) end
+                    mouse1press(); __index(RunService,UpdateMode):Wait(); mouse1release(); mouse1click(); __index(RunService,UpdateMode):Wait()
                 end
             end
         end))
     end
 
-    ServiceConnections.UpdateTracer = Connect(__index(RunService, UpdateMode), LPH_NO_VIRTUALIZE(function()
+    ServiceConnections.UpdateTracer = Connect(__index(RunService,UpdateMode), LPH_NO_VIRTUALIZE(function()
         local ClosestTarget = TracerSettings.Enabled and Settings.Enabled and GetClosestTarget(true)
         if ClosestTarget then
-            setrenderproperty(Tracer, "Visible", true)
-            for Index, Value in next, TracerSettings do
-                if Index == "Color" then continue end
-                if pcall(getrenderproperty, Tracer, Index) then setrenderproperty(Tracer, Index, Value) end
+            setrenderproperty(Tracer,"Visible",true)
+            for Index,Value in next,TracerSettings do
+                if Index=="Color" then continue end
+                if pcall(getrenderproperty,Tracer,Index) then setrenderproperty(Tracer,Index,Value) end
             end
-            setrenderproperty(Tracer, "Color", TracerSettings.RainbowColor and GetRainbowColor() or TracerSettings.Color)
-            if TracerSettings.Position == 1 then
-                setrenderproperty(Tracer, "From", Vector2new(CameraViewportSize.X / 2, CameraViewportSize.Y))
-            elseif TracerSettings.Position == 2 then
-                setrenderproperty(Tracer, "From", CameraViewportSize / 2)
-            elseif TracerSettings.Position == 3 then
-                setrenderproperty(Tracer, "From", GetMouseLocation(UserInputService))
-            end
+            setrenderproperty(Tracer,"Color",TracerSettings.RainbowColor and GetRainbowColor() or TracerSettings.Color)
+            if     TracerSettings.Position==1 then setrenderproperty(Tracer,"From",Vector2new(CameraViewportSize.X/2,CameraViewportSize.Y))
+            elseif TracerSettings.Position==2 then setrenderproperty(Tracer,"From",CameraViewportSize/2)
+            elseif TracerSettings.Position==3 then setrenderproperty(Tracer,"From",GetMouseLocation(UserInputService)) end
             local part = GetTargetPart(ClosestTarget)
-            if part then
-                setrenderproperty(Tracer, "To", ConvertVector(WorldToViewportPoint(Camera, __index(part, "Position"))))
-            end
+            if part then setrenderproperty(Tracer,"To",ConvertVector(WorldToViewportPoint(Camera,__index(part,"Position")))) end
         else
-            setrenderproperty(Tracer, "Visible", false)
+            setrenderproperty(Tracer,"Visible",false)
         end
     end))
 
-    ServiceConnections.RenderSteppedConnection = Connect(__index(RunService, UpdateMode), LPH_NO_VIRTUALIZE(function()
+    ServiceConnections.RenderSteppedConnection = Connect(__index(RunService,UpdateMode), LPH_NO_VIRTUALIZE(function()
         if FOVSettings.Enabled and Settings.Enabled then
-            for Index, Value in next, FOVSettings do
-                if Index == "Color" then continue end
-                if pcall(getrenderproperty, FOVCircle, Index) then
-                    setrenderproperty(FOVCircle, Index, Value)
-                    setrenderproperty(FOVCircleOutline, Index, Value)
+            for Index,Value in next,FOVSettings do
+                if Index=="Color" then continue end
+                if pcall(getrenderproperty,FOVCircle,Index) then
+                    setrenderproperty(FOVCircle,Index,Value); setrenderproperty(FOVCircleOutline,Index,Value)
                 end
             end
-            setrenderproperty(FOVCircle, "Color",
-                (Environment.Locked and FOVSettings.LockedColor)
-                or FOVSettings.RainbowColor and GetRainbowColor()
-                or FOVSettings.Color)
-            setrenderproperty(FOVCircleOutline, "Color",
-                FOVSettings.RainbowOutlineColor and GetRainbowColor() or FOVSettings.OutlineColor)
-            setrenderproperty(FOVCircleOutline, "Thickness", FOVSettings.Thickness + 1)
-            setrenderproperty(FOVCircle, "Position", GetMouseLocation(UserInputService))
-            setrenderproperty(FOVCircleOutline, "Position", GetMouseLocation(UserInputService))
+            setrenderproperty(FOVCircle,"Color",(Environment.Locked and FOVSettings.LockedColor) or FOVSettings.RainbowColor and GetRainbowColor() or FOVSettings.Color)
+            setrenderproperty(FOVCircleOutline,"Color",FOVSettings.RainbowOutlineColor and GetRainbowColor() or FOVSettings.OutlineColor)
+            setrenderproperty(FOVCircleOutline,"Thickness",FOVSettings.Thickness+1)
+            setrenderproperty(FOVCircle,"Position",GetMouseLocation(UserInputService))
+            setrenderproperty(FOVCircleOutline,"Position",GetMouseLocation(UserInputService))
         else
-            setrenderproperty(FOVCircle, "Visible", false)
-            setrenderproperty(FOVCircleOutline, "Visible", false)
+            setrenderproperty(FOVCircle,"Visible",false); setrenderproperty(FOVCircleOutline,"Visible",false)
         end
-
         if Running and Settings.Enabled then
             GetClosestTarget()
             if Environment.Locked then
                 local locked     = Environment.Locked
-                local lockedChar = locked.character or (locked.type == "player" and __index(locked.object, "Character"))
+                local lockedChar = locked.character or (locked.type=="player" and __index(locked.object,"Character"))
                 local part       = GetTargetPart(locked)
                 if not lockedChar or not part then CancelLock(); return end
-
-                local LPos = __index(part, "Position")
+                local LPos   = __index(part,"Position")
                 local Offset = Settings.OffsetToMoveDirection
-                    and __index(FindFirstChildOfClass(lockedChar, "Humanoid"), "MoveDirection") * (mathclamp(Settings.OffsetIncrement, 1, 30) / 10)
+                    and __index(FindFirstChildOfClass(lockedChar,"Humanoid"),"MoveDirection") * (mathclamp(Settings.OffsetIncrement,1,30)/10)
                     or Vector3zero
-
-                local LockedPosition = WorldToViewportPoint(Camera, LPos + Offset)
-
-                if Settings.LockMode == 2 then
-                    mousemoverel(
-                        (LockedPosition.X - GetMouseLocation(UserInputService).X) / Settings.Sensitivity2,
-                        (LockedPosition.Y - GetMouseLocation(UserInputService).Y) / Settings.Sensitivity2
-                    )
-                elseif Settings.LockMode == 3 and mousemoveabs then
+                local LockedPosition = WorldToViewportPoint(Camera, LPos+Offset)
+                if Settings.LockMode==2 then
+                    mousemoverel((LockedPosition.X-GetMouseLocation(UserInputService).X)/Settings.Sensitivity2,
+                                 (LockedPosition.Y-GetMouseLocation(UserInputService).Y)/Settings.Sensitivity2)
+                elseif Settings.LockMode==3 and mousemoveabs then
                     mousemoveabs(LockedPosition.X, LockedPosition.Y)
                 else
-                    if Settings.Sensitivity > 0 then
-                        Animation = TweenService:Create(Camera, TweenInfonew(Settings.Sensitivity, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
-                            CFrame = CFramenew(Camera.CFrame.Position, LPos + Offset)
-                        })
+                    if Settings.Sensitivity>0 then
+                        Animation = TweenService:Create(Camera, TweenInfonew(Settings.Sensitivity,Enum.EasingStyle.Sine,Enum.EasingDirection.Out),
+                            {CFrame=CFramenew(Camera.CFrame.Position,LPos+Offset)})
                         Animation:Play()
                     else
-                        __newindex(Camera, "CFrame", CFramenew(Camera.CFrame.Position, LPos + Offset))
+                        __newindex(Camera,"CFrame",CFramenew(Camera.CFrame.Position,LPos+Offset))
                     end
-                    __newindex(UserInputService, "MouseDeltaSensitivity", 0)
+                    __newindex(UserInputService,"MouseDeltaSensitivity",0)
                 end
-
-                setrenderproperty(FOVCircle, "Color", FOVSettings.LockedColor)
-                setrenderproperty(Tracer, "Visible", false)
+                setrenderproperty(FOVCircle,"Color",FOVSettings.LockedColor)
+                setrenderproperty(Tracer,"Visible",false)
             end
         end
     end))
 
-    ServiceConnections.InputBeganConnection = Connect(__index(UserInputService, "InputBegan"), LPH_NO_VIRTUALIZE(function(Input)
+    ServiceConnections.InputBeganConnection = Connect(__index(UserInputService,"InputBegan"), LPH_NO_VIRTUALIZE(function(Input)
         if Typing then return end
         local TK = Settings.TriggerKey
-        if Input.UserInputType == Enum.UserInputType.Keyboard and Input.KeyCode == TK or Input.UserInputType == TK then
-            if Settings.Toggle then Running = not Running; if not Running then CancelLock() end
-            else Running = true end
+        if Input.UserInputType==Enum.UserInputType.Keyboard and Input.KeyCode==TK or Input.UserInputType==TK then
+            if Settings.Toggle then Running=not Running; if not Running then CancelLock() end else Running=true end
         end
     end))
-
-    ServiceConnections.InputEndedConnection = Connect(__index(UserInputService, "InputEnded"), LPH_NO_VIRTUALIZE(function(Input)
+    ServiceConnections.InputEndedConnection = Connect(__index(UserInputService,"InputEnded"), LPH_NO_VIRTUALIZE(function(Input)
         if Typing then return end
         local TK = Settings.TriggerKey
-        if Input.UserInputType == Enum.UserInputType.Keyboard and Input.KeyCode == TK or Input.UserInputType == TK then
-            if not Settings.Toggle then Running = false; CancelLock() end
+        if Input.UserInputType==Enum.UserInputType.Keyboard and Input.KeyCode==TK or Input.UserInputType==TK then
+            if not Settings.Toggle then Running=false; CancelLock() end
         end
     end))
 end
 
-ServiceConnections.TypingStartedConnection = Connect(__index(UserInputService, "TextBoxFocused"), function() Typing = true end)
-ServiceConnections.TypingEndedConnection   = Connect(__index(UserInputService, "TextBoxFocusReleased"), function() Typing = false end)
-
--- ============================================================
--- AIMBOT METHODS
--- ============================================================
+ServiceConnections.TypingStartedConnection = Connect(__index(UserInputService,"TextBoxFocused"),    function() Typing=true  end)
+ServiceConnections.TypingEndedConnection   = Connect(__index(UserInputService,"TextBoxFocusReleased"), function() Typing=false end)
 
 repeat taskwait(0) until Environment and Load
 
 Environment.Exit = LPH_NO_VIRTUALIZE(function(self)
     assert(self, "AIMBOT.Exit: Missing parameter #1.")
     for Index in next, ServiceConnections do pcall(Disconnect, ServiceConnections[Index]) end
-    copAlarmConn:Disconnect()
-    espConn:Disconnect()
-    wsConn:Disconnect()
-    jpConn:Disconnect()
-    vfConn:Disconnect()
-    vfStop()
-    espClear()
-    Load = nil; ConvertVector = nil; CancelLock = nil; GetClosestTarget = nil; GetClosestPlayer = nil; GetRainbowColor = nil; FixUsername = nil
+    copAlarmConn:Disconnect(); espConn:Disconnect()
+    wsConn:Disconnect(); jpConn:Disconnect(); vfConn:Disconnect()
+    vfStop(); espClear()
+    Load=nil; ConvertVector=nil; CancelLock=nil; GetClosestTarget=nil; GetClosestPlayer=nil; GetRainbowColor=nil; FixUsername=nil
     self.FOVCircle:Remove(); self.FOVCircleOutline:Remove(); self.Tracer:Remove()
     screenGui:Destroy()
     getgenv().ExunysDeveloperAimbot = nil
     pcall(collectgarbage, "step", 200)
 end)
-
 Environment.Restart = LPH_NO_VIRTUALIZE(function()
-    for Index in next, ServiceConnections do pcall(Disconnect, ServiceConnections[Index]) end
-    Load()
+    for Index in next, ServiceConnections do pcall(Disconnect, ServiceConnections[Index]) end; Load()
 end)
-
 Environment.Blacklist = LPH_NO_VIRTUALIZE(function(self, Username)
-    assert(self, "AIMBOT.Blacklist: Missing parameter #1.")
-    assert(Username, "AIMBOT.Blacklist: Missing parameter #2.")
-    Username = FixUsername(Username)
-    assert(Username, "AIMBOT.Blacklist: User not found.")
-    self.Blacklisted[#self.Blacklisted + 1] = Username
+    assert(self,"AIMBOT.Blacklist: Missing parameter #1."); assert(Username,"AIMBOT.Blacklist: Missing parameter #2.")
+    Username = FixUsername(Username); assert(Username,"AIMBOT.Blacklist: User not found.")
+    self.Blacklisted[#self.Blacklisted+1] = Username
 end)
-
 Environment.Whitelist = LPH_NO_VIRTUALIZE(function(self, Username)
-    assert(self, "AIMBOT.Whitelist: Missing parameter #1.")
-    assert(Username, "AIMBOT.Whitelist: Missing parameter #2.")
-    Username = FixUsername(Username)
-    assert(Username, "AIMBOT.Whitelist: User not found.")
-    local Index = tablefind(self.Blacklisted, Username)
-    assert(Index, "AIMBOT.Whitelist: User not blacklisted.")
+    assert(self,"AIMBOT.Whitelist: Missing parameter #1."); assert(Username,"AIMBOT.Whitelist: Missing parameter #2.")
+    Username = FixUsername(Username); assert(Username,"AIMBOT.Whitelist: User not found.")
+    local Index = tablefind(self.Blacklisted, Username); assert(Index,"AIMBOT.Whitelist: User not blacklisted.")
     tableremove(self.Blacklisted, Index)
 end)
-
 Environment.GetClosestPlayer = LPH_NO_VIRTUALIZE(function() return GetClosestTarget(true) end)
 Environment.Load = Load
 setmetatable(Environment, {__call = Load})
-
 Load()
 
 print("⚡ Exzzecut Jailbreak Hack loaded")
