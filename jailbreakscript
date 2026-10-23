@@ -431,27 +431,19 @@ wsToggleBtn.Text = "SET"; wsToggleBtn.TextColor3 = Color3fromRGB(255, 255, 255)
 wsToggleBtn.TextSize = 13; wsToggleBtn.Font = Enum.Font.GothamBold; wsToggleBtn.Parent = panelMods
 Instance.new("UICorner", wsToggleBtn).CornerRadius = UDim.new(0, 6)
 
-local jpLabel = Instance.new("TextLabel")
-jpLabel.Size = UDim2.new(1, -20, 0, 16); jpLabel.Position = UDim2.new(0, 10, 0, 58)
-jpLabel.BackgroundTransparency = 1; jpLabel.Text = "JumpPower (default 50):"
-jpLabel.TextColor3 = Color3fromRGB(180, 180, 180)
-jpLabel.TextSize = 12; jpLabel.Font = Enum.Font.Gotham
-jpLabel.TextXAlignment = Enum.TextXAlignment.Left; jpLabel.Parent = panelMods
+local ijLabel = Instance.new("TextLabel")
+ijLabel.Size = UDim2.new(1, -20, 0, 16); ijLabel.Position = UDim2.new(0, 10, 0, 58)
+ijLabel.BackgroundTransparency = 1; ijLabel.Text = "Infinite Jump:"
+ijLabel.TextColor3 = Color3fromRGB(180, 180, 180)
+ijLabel.TextSize = 12; ijLabel.Font = Enum.Font.Gotham
+ijLabel.TextXAlignment = Enum.TextXAlignment.Left; ijLabel.Parent = panelMods
 
-local jpInput = Instance.new("TextBox")
-jpInput.Size = UDim2.new(0.6, 0, 0, 26); jpInput.Position = UDim2.new(0, 10, 0, 76)
-jpInput.BackgroundColor3 = Color3fromRGB(30, 30, 40); jpInput.BorderSizePixel = 0
-jpInput.Text = "50"; jpInput.TextColor3 = Color3fromRGB(255, 255, 255)
-jpInput.TextSize = 13; jpInput.Font = Enum.Font.Gotham
-jpInput.ClearTextOnFocus = false; jpInput.Parent = panelMods
-Instance.new("UICorner", jpInput).CornerRadius = UDim.new(0, 6)
-
-local jpToggleBtn = Instance.new("TextButton")
-jpToggleBtn.Size = UDim2.new(0.35, 0, 0, 26); jpToggleBtn.Position = UDim2.new(0.63, 0, 0, 76)
-jpToggleBtn.BackgroundColor3 = Color3fromRGB(60, 60, 80); jpToggleBtn.BorderSizePixel = 0
-jpToggleBtn.Text = "SET"; jpToggleBtn.TextColor3 = Color3fromRGB(255, 255, 255)
-jpToggleBtn.TextSize = 13; jpToggleBtn.Font = Enum.Font.GothamBold; jpToggleBtn.Parent = panelMods
-Instance.new("UICorner", jpToggleBtn).CornerRadius = UDim.new(0, 6)
+local ijToggleBtn = Instance.new("TextButton")
+ijToggleBtn.Size = UDim2.new(1, -20, 0, 28); ijToggleBtn.Position = UDim2.new(0, 10, 0, 76)
+ijToggleBtn.BackgroundColor3 = Color3fromRGB(60, 60, 80); ijToggleBtn.BorderSizePixel = 0
+ijToggleBtn.Text = "▶ TURN ON InfJump"; ijToggleBtn.TextColor3 = Color3fromRGB(255, 255, 255)
+ijToggleBtn.TextSize = 13; ijToggleBtn.Font = Enum.Font.GothamBold; ijToggleBtn.Parent = panelMods
+Instance.new("UICorner", ijToggleBtn).CornerRadius = UDim.new(0, 6)
 
 local vfLabel = Instance.new("TextLabel")
 vfLabel.Size = UDim2.new(1, -20, 0, 16); vfLabel.Position = UDim2.new(0, 10, 0, 112)
@@ -638,14 +630,17 @@ local espConn = RunService.RenderStepped:Connect(function()
         end
         return
     end
+
     local myChar = LocalPlayer.Character
     local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+
     for _, player in ipairs(Players:GetPlayers()) do
         if player == LocalPlayer then continue end
+
         local char = player.Character
         local root = char and char:FindFirstChild("HumanoidRootPart")
-        local head = char and char:FindFirstChild("Head")
-        if not root or not head then
+
+        if not char or not root then
             if espObjects[player] then
                 espObjects[player].box.Visible = false
                 espObjects[player].nameTag.Visible = false
@@ -653,33 +648,68 @@ local espConn = RunService.RenderStepped:Connect(function()
             end
             continue
         end
+
         espCreate(player)
         local objs = espObjects[player]
-        local rootSV, rootOn = WorldToViewportPoint(Camera, root.Position)
-        local headSV         = WorldToViewportPoint(Camera, head.Position + Vector3.new(0, 0.7, 0))
-        if not rootOn then
-            objs.box.Visible = false; objs.nameTag.Visible = false; objs.distTag.Visible = false
+
+        -- 3D bounding box через 8 углов модели (надёжный способ)
+        local ok, cf, size = pcall(function() return char:GetBoundingBox() end)
+        if not ok then continue end
+
+        local hx, hy, hz = size.X / 2, size.Y / 2, size.Z / 2
+        local corners = {
+            cf * CFramenew(-hx,  hy, -hz), cf * CFramenew( hx,  hy, -hz),
+            cf * CFramenew(-hx,  hy,  hz), cf * CFramenew( hx,  hy,  hz),
+            cf * CFramenew(-hx, -hy, -hz), cf * CFramenew( hx, -hy, -hz),
+            cf * CFramenew(-hx, -hy,  hz), cf * CFramenew( hx, -hy,  hz),
+        }
+
+        local minX, minY =  math.huge,  math.huge
+        local maxX, maxY = -math.huge, -math.huge
+        local inFront = false
+
+        for _, corner in ipairs(corners) do
+            local sv = WorldToViewportPoint(Camera, corner.Position)
+            if sv.Z > 0 then
+                inFront = true
+                if sv.X < minX then minX = sv.X end
+                if sv.X > maxX then maxX = sv.X end
+                if sv.Y < minY then minY = sv.Y end
+                if sv.Y > maxY then maxY = sv.Y end
+            end
+        end
+
+        if not inFront then
+            objs.box.Visible = false
+            objs.nameTag.Visible = false
+            objs.distTag.Visible = false
             continue
         end
-        local heightPx = math.abs(headSV.Y - rootSV.Y) * 2.2
-        local widthPx  = heightPx * 0.55
-        local cx = rootSV.X; local cy = (headSV.Y + rootSV.Y) / 2
-        objs.box.Visible = true
-        objs.box.Size    = Vector2new(widthPx, heightPx)
-        objs.box.Position = Vector2new(cx - widthPx/2, cy - heightPx/2)
-        objs.box.Color   = espGetColor(player)
-        objs.nameTag.Visible  = espConfig.showNames
-        objs.nameTag.Position = Vector2new(cx, cy - heightPx/2 - 15)
-        objs.nameTag.Text     = player.Name
+
+        local widthPx  = maxX - minX
+        local heightPx = maxY - minY
+        local cx        = (minX + maxX) / 2
+
+        objs.box.Visible   = true
+        objs.box.Filled    = false
+        objs.box.Size      = Vector2new(widthPx, heightPx)
+        objs.box.Position  = Vector2new(minX, minY)
+        objs.box.Color     = espGetColor(player)
+
+        objs.nameTag.Visible   = espConfig.showNames
+        objs.nameTag.Position  = Vector2new(cx, minY - 15)
+        objs.nameTag.Text      = player.Name
+
         if espConfig.showDist and myRoot then
             local dist = math.round((root.Position - myRoot.Position).Magnitude)
             objs.distTag.Visible   = true
-            objs.distTag.Position  = Vector2new(cx, cy + heightPx/2 + 2)
+            objs.distTag.Position  = Vector2new(cx, maxY + 2)
             objs.distTag.Text      = dist .. " st."
         else
             objs.distTag.Visible = false
         end
     end
+
     for player in pairs(espObjects) do
         if not player or not player.Parent then espRemove(player) end
     end
@@ -729,13 +759,17 @@ local wsConn = RunService.Heartbeat:Connect(function()
 end)
 _G.ExzzecutWSConn = wsConn
 
-local jpConn = RunService.Heartbeat:Connect(function()
-    if not modsConfig.jpEnabled then return end
+local infJumpEnabled = false
+
+local infJumpConn = UserInputService.JumpRequest:Connect(function()
+    if not infJumpEnabled then return end
     local char = LocalPlayer.Character
     local hum  = char and char:FindFirstChildOfClass("Humanoid")
-    if hum then hum.JumpPower = modsConfig.jpValue end
+    if hum then
+        hum:ChangeState(Enum.HumanoidStateType.Jumping)
+    end
 end)
-_G.ExzzecutJPConn = jpConn
+_G.ExzzecutInfJumpConn = infJumpConn
 
 local vfConn = RunService.Heartbeat:Connect(function()
     if not modsConfig.vfEnabled then return end
@@ -782,17 +816,14 @@ wsToggleBtn.MouseButton1Click:Connect(function()
     end
 end)
 
-jpToggleBtn.MouseButton1Click:Connect(function()
-    local v = tonumber(jpInput.Text)
-    if not v or v <= 0 then return end
-    modsConfig.jpValue = v; modsConfig.jpEnabled = not modsConfig.jpEnabled
-    if modsConfig.jpEnabled then
-        jpToggleBtn.Text = "✓ " .. v; jpToggleBtn.BackgroundColor3 = Color3fromRGB(50, 160, 90)
+ijToggleBtn.MouseButton1Click:Connect(function()
+    infJumpEnabled = not infJumpEnabled
+    if infJumpEnabled then
+        ijToggleBtn.Text = "⏹ TURN OFF InfJump"
+        ijToggleBtn.BackgroundColor3 = Color3fromRGB(200, 50, 50)
     else
-        jpToggleBtn.Text = "SET"; jpToggleBtn.BackgroundColor3 = Color3fromRGB(60, 60, 80)
-        local char = LocalPlayer.Character
-        local hum  = char and char:FindFirstChildOfClass("Humanoid")
-        if hum then hum.JumpPower = 50 end
+        ijToggleBtn.Text = "▶ TURN ON InfJump"
+        ijToggleBtn.BackgroundColor3 = Color3fromRGB(60, 60, 80)
     end
 end)
 
@@ -1144,8 +1175,7 @@ repeat taskwait(0) until Environment and Load
 Environment.Exit = LPH_NO_VIRTUALIZE(function(self)
     assert(self, "AIMBOT.Exit: Missing parameter #1.")
     for Index in next, ServiceConnections do pcall(Disconnect, ServiceConnections[Index]) end
-    copAlarmConn:Disconnect(); espConn:Disconnect()
-    wsConn:Disconnect(); jpConn:Disconnect(); vfConn:Disconnect()
+    copAlarmConn:Disconnect(); espConn:Disconnect(); wsConn:Disconnect(); infJumpConn:Disconnect(); vfConn:Disconnect();
     vfStop(); espClear()
     Load=nil; ConvertVector=nil; CancelLock=nil; GetClosestTarget=nil; GetClosestPlayer=nil; GetRainbowColor=nil; FixUsername=nil
     self.FOVCircle:Remove(); self.FOVCircleOutline:Remove(); self.Tracer:Remove()
