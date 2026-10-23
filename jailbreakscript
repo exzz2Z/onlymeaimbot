@@ -723,14 +723,26 @@ local vfBodyGyro     = nil
 
 local wsBodyVel = nil
 
-local wsConn = RunService.RenderStepped:Connect(function()
-    if not modsConfig.wsEnabled then return end
-    local char = LocalPlayer.Character
-    local hum  = char and char:FindFirstChildOfClass("Humanoid")
-    if hum then
-        hum.WalkSpeed = modsConfig.wsValue
-    end
-end)
+local wsLoopActive = false
+
+local function wsLoop()
+    if wsLoopActive then return end
+    wsLoopActive = true
+    task.spawn(function()
+        while wsLoopActive do
+            if modsConfig.wsEnabled then
+                local char = LocalPlayer.Character
+                local hum  = char and char:FindFirstChildOfClass("Humanoid")
+                if hum then
+                    hum.WalkSpeed = modsConfig.wsValue
+                end
+            end
+            task.wait()
+        end
+    end)
+end
+
+wsLoop()
 _G.ExzzecutWSConn = wsConn
 
 local jpConn = RunService.Heartbeat:Connect(function()
@@ -1153,7 +1165,7 @@ Environment.Exit = LPH_NO_VIRTUALIZE(function(self)
     assert(self, "AIMBOT.Exit: Missing parameter #1.")
     for Index in next, ServiceConnections do pcall(Disconnect, ServiceConnections[Index]) end
     copAlarmConn:Disconnect(); espConn:Disconnect()
-    wsConn:Disconnect(); jpConn:Disconnect(); vfConn:Disconnect()
+    wsLoopActive = false; jpConn:Disconnect(); vfConn:Disconnect()
     vfStop(); espClear()
     Load=nil; ConvertVector=nil; CancelLock=nil; GetClosestTarget=nil; GetClosestPlayer=nil; GetRainbowColor=nil; FixUsername=nil
     self.FOVCircle:Remove(); self.FOVCircleOutline:Remove(); self.Tracer:Remove()
