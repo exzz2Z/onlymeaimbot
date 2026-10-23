@@ -723,33 +723,12 @@ local vfBodyGyro     = nil
 
 local wsBodyVel = nil
 
-local wsConn = RunService.Heartbeat:Connect(function()
-    if not modsConfig.wsEnabled then
-        if wsBodyVel and wsBodyVel.Parent then wsBodyVel:Destroy(); wsBodyVel = nil end
-        return
-    end
+local wsConn = RunService.RenderStepped:Connect(function()
+    if not modsConfig.wsEnabled then return end
     local char = LocalPlayer.Character
-    local root = char and char:FindFirstChild("HumanoidRootPart")
     local hum  = char and char:FindFirstChildOfClass("Humanoid")
-    if not root or not hum then return end
-
-    -- обычный способ на всякий
-    hum.WalkSpeed = modsConfig.wsValue
-
-    -- создаём BodyVelocity если нет
-    if not wsBodyVel or not wsBodyVel.Parent then
-        wsBodyVel = Instance.new("BodyVelocity")
-        wsBodyVel.MaxForce = Vector3.new(1e5, 0, 1e5) -- только горизонталь, не мешаем прыжку
-        wsBodyVel.Velocity  = Vector3.zero
-        wsBodyVel.Parent    = root
-    end
-
-    -- направление движения из MoveDirection гуманоида
-    local moveDir = hum.MoveDirection
-    if moveDir.Magnitude > 0 then
-        wsBodyVel.Velocity = moveDir.Unit * modsConfig.wsValue
-    else
-        wsBodyVel.Velocity = Vector3.zero
+    if hum then
+        hum.WalkSpeed = modsConfig.wsValue
     end
 end)
 _G.ExzzecutWSConn = wsConn
