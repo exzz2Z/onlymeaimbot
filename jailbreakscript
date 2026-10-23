@@ -726,11 +726,12 @@ local wsConn = RunService.Heartbeat:Connect(function()
     local char = LocalPlayer.Character
     local hum  = char and char:FindFirstChildOfClass("Humanoid")
     if not hum then return end
-    -- sethiddenproperty для обхода серверного сброса
-    if sethiddenproperty then
-        sethiddenproperty(hum, "WalkSpeed", modsConfig.wsValue)
-    end
     hum.WalkSpeed = modsConfig.wsValue
+    -- принудительный сброс анимационного контроллера если есть
+    local animator = hum:FindFirstChildOfClass("Animator")
+    if animator then
+        pcall(function() hum.WalkSpeed = modsConfig.wsValue end)
+    end
 end)
 _G.ExzzecutWSConn = wsConn
 
