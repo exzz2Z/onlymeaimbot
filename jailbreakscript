@@ -723,26 +723,58 @@ local vfBodyGyro     = nil
 
 local wsBodyVel = nil
 
-local wsLoopActive = false
+-- ============================================================
+-- WALKSPEED HOOK (__newindex intercept)
+-- ============================================================
 
-local function wsLoop()
-    if wsLoopActive then return end
-    wsLoopActive = true
-    task.spawn(function()
-        while wsLoopActive do
-            if modsConfig.wsEnabled then
-                local char = LocalPlayer.Character
-                local hum  = char and char:FindFirstChildOfClass("Humanoid")
-                if hum then
-                    hum.WalkSpeed = modsConfig.wsValue
-                end
-            end
-            task.wait()
-        end
+local wsHooked = false
+local wsOriginalNewindex = nil
+
+local function hookWalkSpeed()
+    if wsHooked then return end
+    wsHooked = true
+
+    local mt = getrawmetatable(game)
+    local success = pcall(function()
+        setreadonly(mt, false)
     end)
+
+    wsOriginalNewindex = mt.__newindex
+
+    mt.__newindex = newcclosure(function(self, index, value)
+        if modsConfig.wsEnabled and index == "WalkSpeed" then
+            local char = LocalPlayer.Character
+            local hum  = char and char:FindFirstChildOfClass("Humanoid")
+            if hum and self == hum then
+                -- подменяем записываемое значение на своё
+                return wsOriginalNewindex(self, index, modsConfig.wsValue)
+            end
+        end
+        return wsOriginalNewindex(self, index, value)
+    end)
+
+    if success then
+        pcall(function() setreadonly(mt, true) end)
+    end
 end
 
-wsLoop()
+local function unhookWalkSpeed()
+    if not wsHooked then return end
+    local mt = getrawmetatable(game)
+    pcall(function() setreadonly(mt, false) end)
+    mt.__newindex = wsOriginalNewindex
+    pcall(function() setreadonly(mt, true) end)
+    wsHooked = false
+end
+
+-- запасной Heartbeat цикл (на случай если хук не ловит все пути записи)
+local wsConn = RunService.Heartbeat:Connect(function()
+    if not modsConfig.wsEnabled then return end
+    if not wsHooked then hookWalkSpeed() end
+    local char = LocalPlayer.Character
+    local hum  = char and char:FindFirstChildOfClass("Humanoid")
+    if hum then hum.WalkSpeed = modsConfig.wsValue end
+end)
 _G.ExzzecutWSConn = wsConn
 
 local jpConn = RunService.Heartbeat:Connect(function()
@@ -787,12 +819,16 @@ end
 wsToggleBtn.MouseButton1Click:Connect(function()
     local v = tonumber(wsInput.Text)
     if not v or v <= 0 then return end
-    modsConfig.wsValue = v; modsConfig.wsEnabled = not modsConfig.wsEnabled
+    modsConfig.wsValue = v
+    modsConfig.wsEnabled = not modsConfig.wsEnabled
     if modsConfig.wsEnabled then
-        wsToggleBtn.Text = "✓ " .. v; wsToggleBtn.BackgroundColor3 = Color3fromRGB(50, 160, 90)
+        wsToggleBtn.Text = "✓ " .. v
+        wsToggleBtn.BackgroundColor3 = Color3fromRGB(50, 160, 90)
+        hookWalkSpeed()
     else
-        wsToggleBtn.Text = "SET"; wsToggleBtn.BackgroundColor3 = Color3fromRGB(60, 60, 80)
-        if wsBodyVel and wsBodyVel.Parent then wsBodyVel:Destroy(); wsBodyVel = nil end
+        wsToggleBtn.Text = "SET"
+        wsToggleBtn.BackgroundColor3 = Color3fromRGB(60, 60, 80)
+        unhookWalkSpeed()
         local char = LocalPlayer.Character
         local hum  = char and char:FindFirstChildOfClass("Humanoid")
         if hum then hum.WalkSpeed = 16 end
@@ -1169,6 +1205,7 @@ Environment.Exit = LPH_NO_VIRTUALIZE(function(self)
     vfStop(); espClear()
     Load=nil; ConvertVector=nil; CancelLock=nil; GetClosestTarget=nil; GetClosestPlayer=nil; GetRainbowColor=nil; FixUsername=nil
     self.FOVCircle:Remove(); self.FOVCircleOutline:Remove(); self.Tracer:Remove()
+    unhookWalkSpeed()
     screenGui:Destroy()
     getgenv().ExunysDeveloperAimbot = nil
     pcall(collectgarbage, "step", 200)
