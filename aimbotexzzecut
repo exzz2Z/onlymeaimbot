@@ -13,6 +13,8 @@ local getrawmetatable, pcall, next, tick, getgenv =
       getrawmetatable, pcall, next, tick, getgenv
 local Vector2new, Vector3zero, CFramenew, Color3fromRGB, Color3fromHSV =
       Vector2.new, Vector3.zero, CFrame.new, Color3.fromRGB, Color3.fromHSV
+local Vector3new = Vector3.new
+local mathfloor, mathceil = math.floor, math.ceil
 local Drawingnew, TweenInfonew   = Drawing and Drawing.new, TweenInfo.new
 local mousemoverel, mousemoveabs = mousemoverel or (Input and Input.MouseMove), mousemoveabs
 local mouse1press, mouse1release, mouse1click, taskwait =
@@ -122,6 +124,16 @@ local Settings = {
     -- AimBots/NPC
     AimPlayers         = true,
     AimBots            = false,
+
+    -- "Character3D"  = ближайший в 3D к персонажу игрока
+    -- "ScreenCenter" = ближайший к центру экрана
+    TargetMode      = "Character3D",
+
+    -- "Camera" = Camera.CFrame (+ поворот персонажа по yaw)
+    -- "Mouse"  = mousemoverel, камеру и персонажа крутит сама игра
+    AimMethod       = "Camera",
+    RotateCharacter = true,   -- только для AimMethod = "Camera"
+    MouseGain       = 1.0,    -- НЕ откалибровано
 }
 
 -- ── Состояние ────────────────────────────────────────────────
@@ -134,6 +146,9 @@ local ServiceConnections = {}
 local npcCache           = {}
 local npcCacheTime       = 0
 local NPC_CACHE_TTL      = 1.0
+local CharState      = { humanoid = nil, autoRotate = nil }
+local MouseRemainder = Vector2new(0, 0)
+local RENDER_BIND_NAME = "ExzzecutAimbotStep"
 
 -- ═══════════════════════════════════════════════════════════════
 --  DRAWING OBJECTS
@@ -164,9 +179,55 @@ setrenderproperty(Tracer, "Transparency",0.4)
 -- ═══════════════════════════════════════════════════════════════
 local function CV(v) return Vector2new(v.X, v.Y) end
 
+local function UsesMouseMethod()
+    return Settings.AimMethod == "Mouse" and mousemoverel ~= nil
+end
+
+-- Точка отсчёта для FOV и выбора цели: курсор при методе Mouse, иначе центр вьюпорта.
+local function GetScreenOrigin()
+    if UsesMouseMethod() then return GetMouseLocation(UserInputService) end
+    return __index(Camera, "ViewportSize") / 2
+end
+
+local function GetLocalRoot()
+    local char = __index(LocalPlayer, "Character")
+    if not char then return nil, nil end
+    return FindFirstChildOfClass(char, "Humanoid"), FindFirstChild(char, "HumanoidRootPart")
+end
+
+local function ReleaseCharacter()
+    local hum = CharState.humanoid
+    if hum then
+        pcall(function() __newindex(hum, "AutoRotate", CharState.autoRotate) end)
+    end
+    CharState.humanoid, CharState.autoRotate = nil, nil
+end
+
+-- Поворот персонажа только по горизонтали в сторону цели.
+local function RotateCharacterToward(targetPos, alpha)
+    local hum, root = GetLocalRoot()
+    if not hum or not root then return end
+    if __index(hum, "Health") <= 0 or __index(hum, "Sit") then return end
+
+    if CharState.humanoid ~= hum then
+        ReleaseCharacter()
+        CharState.humanoid   = hum
+        CharState.autoRotate = __index(hum, "AutoRotate")
+    end
+    __newindex(hum, "AutoRotate", false)
+
+    local rp   = __index(root, "Position")
+    local flat = Vector3new(targetPos.X - rp.X, 0, targetPos.Z - rp.Z)
+    if flat.Magnitude < 0.05 then return end
+    local goal = CFramenew(rp, rp + flat)
+    __newindex(root, "CFrame", __index(root, "CFrame"):Lerp(goal, alpha))
+end
+
 local function CancelLock()
     Locked = nil
+    MouseRemainder = Vector2new(0, 0)
     __newindex(UserInputService, "MouseDeltaSensitivity", OriginalSensitivity)
+    ReleaseCharacter()
     if ActiveAnimation then ActiveAnimation:Cancel(); ActiveAnimation = nil end
     setrenderproperty(FOVCircle, "Color", Settings.FOVColor)
 end
@@ -255,45 +316,82 @@ end
 
 -- ── Поиск ближайшей цели в FOV ───────────────────────────────
 local function GetClosestTarget()
-    local fovR      = Settings.FOVRadius > 0 and Settings.FOVRadius or 9999
-    local mousePos  = GetMouseLocation(UserInputService)
-    local camPos    = __index(Camera,"CFrame").Position
-    local bestDist  = math.huge
-    local bestTarget = nil
+    local fovR   = Settings.FOVRadius > 0 and Settings.FOVRadius or 9999
+    local origin = GetScreenOrigin()
+    local _, localRoot = GetLocalRoot()
+    local refPos = localRoot and __index(localRoot, "Position")
+                   or __index(Camera, "CFrame").Position
+    local bestScore, bestTarget = math.huge, nil
 
     for _, target in next, GetAllTargets() do
         local part = GetTargetPart(target)
         if not part then continue end
-        local sv = WorldToViewportPoint(Camera, __index(part,"Position"))
+        local pos = __index(part, "Position")
+        local sv  = WorldToViewportPoint(Camera, pos)
         if sv.Z <= 0 then continue end
-        local screenDist = (mousePos - Vector2new(sv.X, sv.Y)).Magnitude
+        local screenDist = (origin - Vector2new(sv.X, sv.Y)).Magnitude
         if screenDist > fovR then continue end
-        -- приоритет: ближайший по экрану (можно переключить на 3D)
-        local worldDist = (camPos - __index(part,"Position")).Magnitude
-        if worldDist < bestDist then
-            bestDist    = worldDist
-            bestTarget  = target
+
+        local score
+        if Settings.TargetMode == "ScreenCenter" then
+            score = screenDist
+        else
+            score = (refPos - pos).Magnitude
+        end
+        if score < bestScore then
+            bestScore, bestTarget = score, target
         end
     end
-
     return bestTarget
 end
 
--- ── Шаг аимбота ──────────────────────────────────────────────
-local function AimbotStep()
-    -- обновляем lock
+local function AimWithCamera(targetPos, alpha)
+    local goal = CFramenew(__index(Camera, "CFrame").Position, targetPos)
+    if Settings.Sensitivity > 0 then
+        if ActiveAnimation then ActiveAnimation:Cancel() end
+        ActiveAnimation = TweenService:Create(
+            Camera,
+            TweenInfonew(Settings.Sensitivity, Enum.EasingStyle.Sine, Enum.EasingDirection.Out),
+            {CFrame = goal}
+        )
+        ActiveAnimation:Play()
+    else
+        __newindex(Camera, "CFrame", goal)
+    end
+    __newindex(UserInputService, "MouseDeltaSensitivity", 0)
+
+    if Settings.RotateCharacter then
+        RotateCharacterToward(targetPos, alpha)
+    else
+        ReleaseCharacter()
+    end
+end
+
+-- Замкнутый контур: каждый кадр заново меряем экранное смещение цели.
+-- Дробную часть копим в MouseRemainder, чтобы не терять субпиксельные шаги.
+local function AimWithMouse(targetPos, alpha)
+    local sv = WorldToViewportPoint(Camera, targetPos)
+    if sv.Z <= 0 then return end
+    local origin = GetMouseLocation(UserInputService)
+    local want = (Vector2new(sv.X, sv.Y) - origin) * (alpha * Settings.MouseGain) + MouseRemainder
+    local sx = want.X >= 0 and mathfloor(want.X) or mathceil(want.X)
+    local sy = want.Y >= 0 and mathfloor(want.Y) or mathceil(want.Y)
+    MouseRemainder = Vector2new(want.X - sx, want.Y - sy)
+    if sx ~= 0 or sy ~= 0 then mousemoverel(sx, sy) end
+end
+
+local function AimbotStep(dt)
     if Locked then
         local lockedChar = Locked.character
-            or (Locked.type == "player" and __index(Locked.object,"Character"))
+            or (Locked.type == "player" and __index(Locked.object, "Character"))
         local part = GetTargetPart(Locked)
         if not lockedChar or not part or not part.Parent then
             CancelLock(); return
         end
-        -- проверка: цель ещё в FOV?
-        local fovR     = Settings.FOVRadius > 0 and Settings.FOVRadius or 9999
-        local mousePos = GetMouseLocation(UserInputService)
-        local sv       = WorldToViewportPoint(Camera, __index(part,"Position"))
-        if sv.Z <= 0 or (mousePos - Vector2new(sv.X, sv.Y)).Magnitude > fovR then
+        local fovR   = Settings.FOVRadius > 0 and Settings.FOVRadius or 9999
+        local origin = GetScreenOrigin()
+        local sv     = WorldToViewportPoint(Camera, __index(part, "Position"))
+        if sv.Z <= 0 or (origin - Vector2new(sv.X, sv.Y)).Magnitude > fovR then
             CancelLock(); return
         end
     else
@@ -303,22 +401,16 @@ local function AimbotStep()
 
     local part = GetTargetPart(Locked)
     if not part then CancelLock(); return end
+    local targetPos = __index(part, "Position")
+    local alpha = Settings.Sensitivity > 0
+        and mathclamp(dt / Settings.Sensitivity, 0, 1) or 1
 
-    local targetPos = __index(part,"Position")
-
-    if Settings.Sensitivity > 0 then
-        if ActiveAnimation then ActiveAnimation:Cancel() end
-        ActiveAnimation = TweenService:Create(
-            Camera,
-            TweenInfonew(Settings.Sensitivity, Enum.EasingStyle.Sine, Enum.EasingDirection.Out),
-            {CFrame = CFramenew(Camera.CFrame.Position, targetPos)}
-        )
-        ActiveAnimation:Play()
+    if UsesMouseMethod() then
+        AimWithMouse(targetPos, alpha)
     else
-        __newindex(Camera,"CFrame", CFramenew(Camera.CFrame.Position, targetPos))
+        AimWithCamera(targetPos, alpha)
     end
-    __newindex(UserInputService,"MouseDeltaSensitivity", 0)
-    setrenderproperty(FOVCircle,"Color", Settings.FOVLockedColor)
+    setrenderproperty(FOVCircle, "Color", Settings.FOVLockedColor)
 end
 
 -- ═══════════════════════════════════════════════════════════════
@@ -786,6 +878,32 @@ mkRadio("Lock Part", {"Head", "Torso (HumanoidRootPart)"}, 1, function(i, opt)
 end)
 
 mkSeparator()
+mkSectionTitle("── TARGET SELECTION ─────────────")
+mkRadio("Target Mode",
+    {"Closest to Character (3D)", "Closest to Screen Center"},
+    Settings.TargetMode == "Character3D" and 1 or 2,
+    function(i)
+        Settings.TargetMode = (i == 1) and "Character3D" or "ScreenCenter"
+        CancelLock()
+    end)
+
+mkSeparator()
+mkSectionTitle("── AIM METHOD ───────────────────")
+mkRadio("Aim Method", {"Camera (+ персонаж)", "Mouse (mousemoverel)"}, 1, function(i)
+    Settings.AimMethod = (i == 1) and "Camera" or "Mouse"
+    if i == 2 and not mousemoverel then
+        warn("[Exzzecut] mousemoverel недоступен, используется Camera")
+    end
+    CancelLock()
+end)
+mkToggle("Rotate Character (Camera)", Settings.RotateCharacter, function(v)
+    Settings.RotateCharacter = v
+    ReleaseCharacter()
+end)
+mkSlider("Mouse Gain % (не откалибровано)", 10, 200, math.floor(Settings.MouseGain * 100), function(v)
+    Settings.MouseGain = v / 100
+end)
+
 mkSectionTitle("── TARGET FILTERS ───────────────")
 
 mkToggle("Aim Players", Settings.AimPlayers, function(v)
@@ -900,62 +1018,48 @@ ServiceConnections.TypingOff = UserInputService.TextBoxFocusReleased:Connect(fun
 -- ═══════════════════════════════════════════════════════════════
 --  MAIN RENDER LOOP
 -- ═══════════════════════════════════════════════════════════════
-ServiceConnections.Render = RunService.RenderStepped:Connect(function()
-    local mousePos = GetMouseLocation(UserInputService)
-    local fovR     = Settings.FOVRadius
+local function OnRender(dt)
+    local origin = GetScreenOrigin()
+    local fovR   = Settings.FOVRadius
 
-    -- FOV circle
     local showFov = Settings.Enabled and Settings.FOVVisible
-    setrenderproperty(FOVCircle,        "Visible",  showFov)
-    setrenderproperty(FOVCircleOutline, "Visible",  showFov)
+    setrenderproperty(FOVCircle,        "Visible", showFov)
+    setrenderproperty(FOVCircleOutline, "Visible", showFov)
     if showFov then
         setrenderproperty(FOVCircle,        "Radius",   fovR)
         setrenderproperty(FOVCircleOutline, "Radius",   fovR)
-        setrenderproperty(FOVCircle,        "Position", mousePos)
-        setrenderproperty(FOVCircleOutline, "Position", mousePos)
-        setrenderproperty(FOVCircle,        "Color",
+        setrenderproperty(FOVCircle,        "Position", origin)
+        setrenderproperty(FOVCircleOutline, "Position", origin)
+        setrenderproperty(FOVCircle, "Color",
             Locked and Settings.FOVLockedColor or Settings.FOVColor)
-        setrenderproperty(FOVCircleOutline, "Color",    Settings.FOVOutlineColor)
+        setrenderproperty(FOVCircleOutline, "Color",     Settings.FOVOutlineColor)
         setrenderproperty(FOVCircleOutline, "Thickness", 2)
     end
 
-    -- Aimbot step
     if Settings.Enabled and Running then
-        AimbotStep()
-    else
-        if not Running then
-            if Locked then CancelLock() end
-        end
+        AimbotStep(dt)
+    elseif Locked then
+        CancelLock()
     end
 
-    -- Tracer
     if Settings.TracerEnabled and Settings.Enabled then
         local tracerTarget = Locked or (Running and GetClosestTarget())
-        if tracerTarget then
-            local part = GetTargetPart(tracerTarget)
-            if part then
-                local sv = WorldToViewportPoint(Camera, __index(part,"Position"))
-                if sv.Z > 0 then
-                    setrenderproperty(Tracer,"Visible",   true)
-                    setrenderproperty(Tracer,"Color",     Settings.TracerColor)
-                    setrenderproperty(Tracer,"Thickness", Settings.TracerThickness)
-                    setrenderproperty(Tracer,"Transparency",0.4)
-                    setrenderproperty(Tracer,"From",      mousePos)
-                    setrenderproperty(Tracer,"To",        Vector2new(sv.X,sv.Y))
-                else
-                    setrenderproperty(Tracer,"Visible",false)
-                end
-            else
-                setrenderproperty(Tracer,"Visible",false)
-            end
+        local part = tracerTarget and GetTargetPart(tracerTarget)
+        local sv = part and WorldToViewportPoint(Camera, __index(part, "Position"))
+        if sv and sv.Z > 0 then
+            setrenderproperty(Tracer, "Visible",      true)
+            setrenderproperty(Tracer, "Color",        Settings.TracerColor)
+            setrenderproperty(Tracer, "Thickness",    Settings.TracerThickness)
+            setrenderproperty(Tracer, "Transparency", 0.4)
+            setrenderproperty(Tracer, "From",         origin)
+            setrenderproperty(Tracer, "To",           Vector2new(sv.X, sv.Y))
         else
-            setrenderproperty(Tracer,"Visible",false)
+            setrenderproperty(Tracer, "Visible", false)
         end
     else
-        setrenderproperty(Tracer,"Visible",false)
+        setrenderproperty(Tracer, "Visible", false)
     end
 
-    -- Обновить statusLbl target
     if Locked then
         targetLbl.Text       = "Target: " .. GetTargetName(Locked)
         targetLbl.TextColor3 = Color3fromRGB(100,255,100)
@@ -963,7 +1067,9 @@ ServiceConnections.Render = RunService.RenderStepped:Connect(function()
         targetLbl.Text       = "Target: —"
         targetLbl.TextColor3 = Color3fromRGB(140,140,180)
     end
-end)
+end
+
+RunService:BindToRenderStep(RENDER_BIND_NAME, Enum.RenderPriority.Camera.Value + 1, OnRender)
 
 -- ═══════════════════════════════════════════════════════════════
 --  GLOBAL API
@@ -971,6 +1077,7 @@ end)
 getgenv().ExzzecutAimbot = {
     Settings = Settings,
     Exit = function(self)
+        pcall(function() RunService:UnbindFromRenderStep(RENDER_BIND_NAME) end)
         for _, c in pairs(ServiceConnections) do pcall(function() c:Disconnect() end) end
         CancelLock()
         FOVCircle:Remove()
