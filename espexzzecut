@@ -1,0 +1,524 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+
+-- ===================== CONFIG =====================
+local ESP = {
+    Enabled = false,
+    Mode = "All", -- "All" or "Selected"
+    Selected = {}, -- { [userId] = true }
+    Objects = {}, -- { [userId] = { highlight, billboardGui, healthBar } }
+    HighlightColor = Color3.fromRGB(255, 50, 50),
+    OutlineColor = Color3.fromRGB(255, 255, 255),
+}
+
+-- ===================== ESP CORE =====================
+
+local function removeESP(player)
+    local obj = ESP.Objects[player.UserId]
+    if obj then
+        if obj.highlight and obj.highlight.Parent then obj.highlight:Destroy() end
+        if obj.billboard and obj.billboard.Parent then obj.billboard:Destroy() end
+        if obj.healthGui and obj.healthGui.Parent then obj.healthGui:Destroy() end
+        ESP.Objects[player.UserId] = nil
+    end
+end
+
+local function createESP(player)
+    if player == LocalPlayer then return end
+
+    local char = player.Character
+    if not char then return end
+
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+    local rootPart = char:FindFirstChild("HumanoidRootPart")
+    if not humanoid or not rootPart then return end
+
+    -- Убираем старый если есть
+    removeESP(player)
+
+    -- === Highlight ===
+    local highlight = Instance.new("Highlight")
+    highlight.FillColor = ESP.HighlightColor
+    highlight.OutlineColor = ESP.OutlineColor
+    highlight.FillTransparency = 0.4
+    highlight.OutlineTransparency = 0
+    highlight.Adornee = char
+    highlight.Parent = char
+
+    -- === BillboardGui (имя) ===
+    local billboard = Instance.new("BillboardGui")
+    billboard.Adornee = rootPart
+    billboard.Size = UDim2.new(0, 120, 0, 30)
+    billboard.StudsOffset = Vector3.new(0, 3.5, 0)
+    billboard.AlwaysOnTop = true
+    billboard.Parent = char
+
+    local nameLabel = Instance.new("TextLabel")
+    nameLabel.Size = UDim2.new(1, 0, 1, 0)
+    nameLabel.BackgroundTransparency = 1
+    nameLabel.Text = player.Name
+    nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    nameLabel.TextStrokeTransparency = 0
+    nameLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    nameLabel.Font = Enum.Font.GothamBold
+    nameLabel.TextSize = 14
+    nameLabel.Parent = billboard
+
+    -- === HealthBar (вертикальная полоска слева от хайлайта) ===
+    local healthGui = Instance.new("BillboardGui")
+    healthGui.Adornee = rootPart
+    healthGui.Size = UDim2.new(0, 6, 0, 60)
+    healthGui.StudsOffset = Vector3.new(-1.4, 0, 0)
+    healthGui.AlwaysOnTop = true
+    healthGui.Parent = char
+
+    local bgBar = Instance.new("Frame")
+    bgBar.Size = UDim2.new(1, 0, 1, 0)
+    bgBar.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    bgBar.BorderSizePixel = 0
+    bgBar.Parent = healthGui
+
+    local hpBar = Instance.new("Frame")
+    hpBar.Size = UDim2.new(1, 0, 1, 0)
+    hpBar.AnchorPoint = Vector2.new(0, 1)
+    hpBar.Position = UDim2.new(0, 0, 1, 0)
+    hpBar.BackgroundColor3 = Color3.fromRGB(80, 220, 80)
+    hpBar.BorderSizePixel = 0
+    hpBar.Parent = bgBar
+
+    -- Апдейт HP каждый фрейм
+    RunService.Heartbeat:Connect(function()
+        if not humanoid or not humanoid.Parent then return end
+        local pct = humanoid.Health / math.max(humanoid.MaxHealth, 1)
+        hpBar.Size = UDim2.new(1, 0, pct, 0)
+        -- Цвет: зелёный -> красный
+        hpBar.BackgroundColor3 = Color3.fromRGB(
+            math.floor((1 - pct) * 220),
+            math.floor(pct * 220),
+            50
+        )
+    end)
+
+    ESP.Objects[player.UserId] = {
+        highlight = highlight,
+        billboard = billboard,
+        healthGui = healthGui,
+    }
+end
+
+local function shouldShow(player)
+    if not ESP.Enabled then return false end
+    if player == LocalPlayer then return false end
+    if not player.Character then return false end
+    if ESP.Mode == "All" then return true end
+    if ESP.Mode == "Selected" then return ESP.Selected[player.UserId] == true end
+    return false
+end
+
+local function refreshAllESP()
+    for _, player in ipairs(Players:GetPlayers()) do
+        if shouldShow(player) then
+            if not ESP.Objects[player.UserId] then
+                createESP(player)
+            end
+        else
+            removeESP(player)
+        end
+    end
+end
+
+-- Следим за персонажем
+local function watchPlayer(player)
+    player.CharacterAdded:Connect(function()
+        task.wait(0.5)
+        if shouldShow(player) then
+            createESP(player)
+        end
+    end)
+    player.CharacterRemoving:Connect(function()
+        removeESP(player)
+    end)
+end
+
+for _, p in ipairs(Players:GetPlayers()) do watchPlayer(p) end
+Players.PlayerAdded:Connect(watchPlayer)
+Players.PlayerRemoving:Connect(function(p) removeESP(p) end)
+
+-- ===================== GUI =====================
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "CapybaraESP"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.Parent = game.CoreGui
+
+-- Основное окно
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 280, 0, 380)
+MainFrame.Position = UDim2.new(0, 20, 0.5, -190)
+MainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Parent = ScreenGui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 10)
+corner.Parent = MainFrame
+
+-- Заголовок
+local titleBar = Instance.new("Frame")
+titleBar.Size = UDim2.new(1, 0, 0, 36)
+titleBar.BackgroundColor3 = Color3.fromRGB(30, 30, 42)
+titleBar.BorderSizePixel = 0
+titleBar.Parent = MainFrame
+
+local titleCorner = Instance.new("UICorner")
+titleCorner.CornerRadius = UDim.new(0, 10)
+titleCorner.Parent = titleBar
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -10, 1, 0)
+title.Position = UDim2.new(0, 10, 0, 0)
+title.BackgroundTransparency = 1
+title.Text = "🦫 Capybara ESP"
+title.TextColor3 = Color3.fromRGB(220, 220, 255)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 15
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Parent = titleBar
+
+-- Контент с паддингом
+local content = Instance.new("Frame")
+content.Size = UDim2.new(1, -20, 1, -46)
+content.Position = UDim2.new(0, 10, 0, 42)
+content.BackgroundTransparency = 1
+content.Parent = MainFrame
+
+local layout = Instance.new("UIListLayout")
+layout.SortOrder = Enum.SortOrder.LayoutOrder
+layout.Padding = UDim.new(0, 8)
+layout.Parent = content
+
+-- Утилита: кнопка-переключатель
+local function makeToggle(parent, labelText, order, callback)
+    local row = Instance.new("Frame")
+    row.Size = UDim2.new(1, 0, 0, 32)
+    row.BackgroundTransparency = 1
+    row.LayoutOrder = order
+    row.Parent = parent
+
+    local lbl = Instance.new("TextLabel")
+    lbl.Size = UDim2.new(0.6, 0, 1, 0)
+    lbl.BackgroundTransparency = 1
+    lbl.Text = labelText
+    lbl.TextColor3 = Color3.fromRGB(200, 200, 215)
+    lbl.Font = Enum.Font.Gotham
+    lbl.TextSize = 13
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.Parent = row
+
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0, 54, 0, 24)
+    btn.Position = UDim2.new(1, -54, 0.5, -12)
+    btn.BackgroundColor3 = Color3.fromRGB(60, 60, 75)
+    btn.Text = "OFF"
+    btn.TextColor3 = Color3.fromRGB(180, 180, 180)
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 12
+    btn.BorderSizePixel = 0
+    btn.Parent = row
+
+    local btnCorner = Instance.new("UICorner")
+    btnCorner.CornerRadius = UDim.new(0, 6)
+    btnCorner.Parent = btn
+
+    local state = false
+    btn.MouseButton1Click:Connect(function()
+        state = not state
+        btn.Text = state and "ON" or "OFF"
+        btn.BackgroundColor3 = state and Color3.fromRGB(80, 200, 120) or Color3.fromRGB(60, 60, 75)
+        btn.TextColor3 = state and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(180, 180, 180)
+        callback(state)
+    end)
+
+    return btn
+end
+
+-- === Переключатель ESP ===
+makeToggle(content, "ESP Включён", 1, function(val)
+    ESP.Enabled = val
+    refreshAllESP()
+end)
+
+-- === Режим: All / Selected ===
+local modeRow = Instance.new("Frame")
+modeRow.Size = UDim2.new(1, 0, 0, 32)
+modeRow.BackgroundTransparency = 1
+modeRow.LayoutOrder = 2
+modeRow.Parent = content
+
+local modeLbl = Instance.new("TextLabel")
+modeLbl.Size = UDim2.new(0.45, 0, 1, 0)
+modeLbl.BackgroundTransparency = 1
+modeLbl.Text = "Режим:"
+modeLbl.TextColor3 = Color3.fromRGB(200, 200, 215)
+modeLbl.Font = Enum.Font.Gotham
+modeLbl.TextSize = 13
+modeLbl.TextXAlignment = Enum.TextXAlignment.Left
+modeLbl.Parent = modeRow
+
+local modeBtn = Instance.new("TextButton")
+modeBtn.Size = UDim2.new(0, 110, 0, 24)
+modeBtn.Position = UDim2.new(1, -110, 0.5, -12)
+modeBtn.BackgroundColor3 = Color3.fromRGB(80, 130, 220)
+modeBtn.Text = "Все игроки"
+modeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+modeBtn.Font = Enum.Font.GothamBold
+modeBtn.TextSize = 11
+modeBtn.BorderSizePixel = 0
+modeBtn.Parent = modeRow
+
+local modeBtnCorner = Instance.new("UICorner")
+modeBtnCorner.CornerRadius = UDim.new(0, 6)
+modeBtnCorner.Parent = modeBtn
+
+modeBtn.MouseButton1Click:Connect(function()
+    if ESP.Mode == "All" then
+        ESP.Mode = "Selected"
+        modeBtn.Text = "Выбранные"
+        modeBtn.BackgroundColor3 = Color3.fromRGB(200, 130, 50)
+    else
+        ESP.Mode = "All"
+        modeBtn.Text = "Все игроки"
+        modeBtn.BackgroundColor3 = Color3.fromRGB(80, 130, 220)
+    end
+    refreshAllESP()
+end)
+
+-- === Разделитель ===
+local sep1 = Instance.new("Frame")
+sep1.Size = UDim2.new(1, 0, 0, 1)
+sep1.BackgroundColor3 = Color3.fromRGB(50, 50, 65)
+sep1.BorderSizePixel = 0
+sep1.LayoutOrder = 3
+sep1.Parent = content
+
+-- === Дропдаун: выбор игроков ===
+local dropLabel = Instance.new("TextLabel")
+dropLabel.Size = UDim2.new(1, 0, 0, 20)
+dropLabel.BackgroundTransparency = 1
+dropLabel.Text = "Добавить игрока:"
+dropLabel.TextColor3 = Color3.fromRGB(160, 160, 190)
+dropLabel.Font = Enum.Font.Gotham
+dropLabel.TextSize = 12
+dropLabel.TextXAlignment = Enum.TextXAlignment.Left
+dropLabel.LayoutOrder = 4
+dropLabel.Parent = content
+
+-- Выпадающий список
+local dropFrame = Instance.new("Frame")
+dropFrame.Size = UDim2.new(1, 0, 0, 28)
+dropFrame.BackgroundColor3 = Color3.fromRGB(28, 28, 38)
+dropFrame.BorderSizePixel = 0
+dropFrame.LayoutOrder = 5
+dropFrame.ClipsDescendants = true
+dropFrame.Parent = content
+
+local dropCorner = Instance.new("UICorner")
+dropCorner.CornerRadius = UDim.new(0, 6)
+dropCorner.Parent = dropFrame
+
+local dropBtn = Instance.new("TextButton")
+dropBtn.Size = UDim2.new(1, 0, 0, 28)
+dropBtn.BackgroundTransparency = 1
+dropBtn.Text = "▼ Выбрать игрока"
+dropBtn.TextColor3 = Color3.fromRGB(180, 180, 210)
+dropBtn.Font = Enum.Font.Gotham
+dropBtn.TextSize = 13
+dropBtn.BorderSizePixel = 0
+dropBtn.Parent = dropFrame
+
+-- ScrollingFrame вместо обычного Frame
+local MAX_DROPDOWN_HEIGHT = 120 -- максимум ~5 строк по 24px
+
+local dropScroll = Instance.new("ScrollingFrame")
+dropScroll.Position = UDim2.new(0, 0, 0, 28)
+dropScroll.Size = UDim2.new(1, 0, 0, 0)
+dropScroll.BackgroundTransparency = 1
+dropScroll.ScrollBarThickness = 3
+dropScroll.ScrollBarImageColor3 = Color3.fromRGB(100, 100, 150)
+dropScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+dropScroll.ClipsDescendants = true
+dropScroll.Parent = dropFrame
+
+local dropList = Instance.new("Frame")
+dropList.Size = UDim2.new(1, -6, 0, 0)
+dropList.BackgroundTransparency = 1
+dropList.Parent = dropScroll
+
+local dropLayout = Instance.new("UIListLayout")
+dropLayout.SortOrder = Enum.SortOrder.LayoutOrder
+dropLayout.Parent = dropList
+
+local dropOpen = false
+
+local function rebuildDropdown()
+    for _, c in ipairs(dropList:GetChildren()) do
+        if c:IsA("TextButton") then c:Destroy() end
+    end
+
+    local players = Players:GetPlayers()
+    local count = 0
+    for _, p in ipairs(players) do
+        if p ~= LocalPlayer then
+            count += 1
+            local item = Instance.new("TextButton")
+            item.Size = UDim2.new(1, 0, 0, 24)
+            item.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
+            item.Text = "  " .. p.Name
+            item.TextColor3 = Color3.fromRGB(210, 210, 230)
+            item.Font = Enum.Font.Gotham
+            item.TextSize = 12
+            item.TextXAlignment = Enum.TextXAlignment.Left
+            item.BorderSizePixel = 0
+            item.LayoutOrder = count
+            item.Parent = dropList
+
+            item.MouseButton1Click:Connect(function()
+                if not ESP.Selected[p.UserId] then
+                    ESP.Selected[p.UserId] = true
+                    dropOpen = false
+                    -- Схлопываем дропдаун
+                    dropScroll.Size = UDim2.new(1, 0, 0, 0)
+                    dropFrame.Size = UDim2.new(1, 0, 0, 28)
+                    dropBtn.Text = "▼ Выбрать игрока"
+                    refreshAllESP()
+                    _G.CapyRebuildSelected()
+                end
+            end)
+        end
+    end
+
+    local totalHeight = count * 24
+    local scrollHeight = math.min(totalHeight, MAX_DROPDOWN_HEIGHT)
+
+    dropList.Size = UDim2.new(1, -6, 0, totalHeight)
+    dropScroll.CanvasSize = UDim2.new(0, 0, 0, totalHeight)
+
+    if dropOpen then
+        dropScroll.Size = UDim2.new(1, 0, 0, scrollHeight)
+        dropFrame.Size = UDim2.new(1, 0, 0, 28 + scrollHeight)
+    else
+        dropScroll.Size = UDim2.new(1, 0, 0, 0)
+        dropFrame.Size = UDim2.new(1, 0, 0, 28)
+    end
+end
+
+dropBtn.MouseButton1Click:Connect(function()
+    dropOpen = not dropOpen
+    rebuildDropdown()
+    dropBtn.Text = dropOpen and "▲ Выбрать игрока" or "▼ Выбрать игрока"
+end)
+
+-- === Список выбранных ===
+local selLabel = Instance.new("TextLabel")
+selLabel.Size = UDim2.new(1, 0, 0, 20)
+selLabel.BackgroundTransparency = 1
+selLabel.Text = "Выбранные игроки:"
+selLabel.TextColor3 = Color3.fromRGB(160, 160, 190)
+selLabel.Font = Enum.Font.Gotham
+selLabel.TextSize = 12
+selLabel.TextXAlignment = Enum.TextXAlignment.Left
+selLabel.LayoutOrder = 6
+selLabel.Parent = content
+
+local selectedFrame = Instance.new("ScrollingFrame")
+selectedFrame.Size = UDim2.new(1, 0, 0, 100)
+selectedFrame.BackgroundColor3 = Color3.fromRGB(22, 22, 32)
+selectedFrame.BorderSizePixel = 0
+selectedFrame.ScrollBarThickness = 3
+selectedFrame.ScrollBarImageColor3 = Color3.fromRGB(100, 100, 150)
+selectedFrame.LayoutOrder = 7
+selectedFrame.Parent = content
+
+local selCorner = Instance.new("UICorner")
+selCorner.CornerRadius = UDim.new(0, 6)
+selCorner.Parent = selectedFrame
+
+local selLayout = Instance.new("UIListLayout")
+selLayout.SortOrder = Enum.SortOrder.LayoutOrder
+selLayout.Parent = selectedFrame
+
+local function rebuildSelected()
+    for _, c in ipairs(selectedFrame:GetChildren()) do
+        if c:IsA("Frame") then c:Destroy() end
+    end
+
+    local count = 0
+    for uid, _ in pairs(ESP.Selected) do
+        local player = Players:GetPlayerByUserId(uid)
+        local name = player and player.Name or ("ID:" .. uid)
+        count += 1
+
+        local row = Instance.new("Frame")
+        row.Size = UDim2.new(1, 0, 0, 24)
+        row.BackgroundTransparency = 1
+        row.LayoutOrder = count
+        row.Parent = selectedFrame
+
+        local nameLbl = Instance.new("TextLabel")
+        nameLbl.Size = UDim2.new(1, -28, 1, 0)
+        nameLbl.BackgroundTransparency = 1
+        nameLbl.Text = "  " .. name
+        nameLbl.TextColor3 = Color3.fromRGB(100, 220, 130)
+        nameLbl.Font = Enum.Font.Gotham
+        nameLbl.TextSize = 12
+        nameLbl.TextXAlignment = Enum.TextXAlignment.Left
+        nameLbl.Parent = row
+
+        local removeBtn = Instance.new("TextButton")
+        removeBtn.Size = UDim2.new(0, 22, 0, 18)
+        removeBtn.Position = UDim2.new(1, -24, 0.5, -9)
+        removeBtn.BackgroundColor3 = Color3.fromRGB(180, 60, 60)
+        removeBtn.Text = "✕"
+        removeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        removeBtn.Font = Enum.Font.GothamBold
+        removeBtn.TextSize = 11
+        removeBtn.BorderSizePixel = 0
+        removeBtn.Parent = row
+
+        local rc = Instance.new("UICorner")
+        rc.CornerRadius = UDim.new(0, 4)
+        rc.Parent = removeBtn
+
+        removeBtn.MouseButton1Click:Connect(function()
+            ESP.Selected[uid] = nil
+            removeESP(player)
+            rebuildSelected()
+            if ESP.Mode == "Selected" then refreshAllESP() end
+        end)
+    end
+
+    selectedFrame.CanvasSize = UDim2.new(0, 0, 0, count * 24)
+end
+
+_G.CapyRebuildSelected = rebuildSelected
+rebuildSelected()
+
+-- === Обновление дропдауна при смене игроков ===
+Players.PlayerAdded:Connect(function(p)
+    watchPlayer(p)
+    rebuildDropdown()
+end)
+Players.PlayerRemoving:Connect(function(p)
+    removeESP(p)
+    ESP.Selected[p.UserId] = nil
+    rebuildSelected()
+    rebuildDropdown()
+end)
+
+-- Инициальный рефреш
+rebuildDropdown()
+print("🦫 Capybara ESP loaded!")
