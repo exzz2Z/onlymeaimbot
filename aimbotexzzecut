@@ -1,0 +1,986 @@
+-- ============================================================
+--  Exzzecut Standalone Aimbot v2.0
+--  Roblox / Jailbreak | Улучшенный, только aimbot
+-- ============================================================
+
+if LPH_OBFUSCATED == nil then
+    LPH_NO_VIRTUALIZE = function(...) return ... end
+end
+
+-- ── Локальные алиасы ─────────────────────────────────────────
+local game, workspace            = game, workspace
+local getrawmetatable, pcall, next, tick, getgenv =
+      getrawmetatable, pcall, next, tick, getgenv
+local Vector2new, Vector3zero, CFramenew, Color3fromRGB, Color3fromHSV =
+      Vector2.new, Vector3.zero, CFrame.new, Color3.fromRGB, Color3.fromHSV
+local Drawingnew, TweenInfonew   = Drawing and Drawing.new, TweenInfo.new
+local mousemoverel, mousemoveabs = mousemoverel or (Input and Input.MouseMove), mousemoveabs
+local mouse1press, mouse1release, mouse1click, taskwait =
+      mouse1press, mouse1release, mouse1click, task.wait
+local tablefind, tableremove, stringlower, stringsub, mathclamp =
+      table.find, table.remove, string.lower, string.sub, math.clamp
+local clonefunction = clonefunction or LPH_NO_VIRTUALIZE(function(...) return ... end)
+local cloneref      = cloneref      or LPH_NO_VIRTUALIZE(function(...) return ... end)
+
+-- ── Metatable bypass ─────────────────────────────────────────
+local GameMetatable  = getrawmetatable and getrawmetatable(game) or {
+    __index    = LPH_NO_VIRTUALIZE(function(s,i) return s[i] end),
+    __newindex = LPH_NO_VIRTUALIZE(function(s,i,v) s[i]=v end),
+}
+local __index    = GameMetatable.__index
+local __newindex = GameMetatable.__newindex
+local getrenderproperty = getrenderproperty or __index
+local setrenderproperty = setrenderproperty or __newindex
+
+local function GetService(s)
+    local _gs = __index(game,"GetService")
+    return cloneref(_gs(game,s))
+end
+
+local RunService       = GetService("RunService")
+local UserInputService = GetService("UserInputService")
+local TweenService     = GetService("TweenService")
+local Players          = GetService("Players")
+
+local LocalPlayer           = __index(Players,  "LocalPlayer")
+local Camera                = __index(workspace, "CurrentCamera")
+local FindFirstChild        = __index(game, "FindFirstChild")
+local FindFirstChildOfClass = __index(game, "FindFirstChildOfClass")
+local GetDescendants        = __index(game, "GetDescendants")
+local WorldToViewportPoint  = __index(Camera, "WorldToViewportPoint")
+local GetPartsObscuringTarget = __index(Camera, "GetPartsObscuringTarget")
+local GetMouseLocation      = __index(UserInputService, "GetMouseLocation")
+local GetPlayers            = __index(Players, "GetPlayers")
+local GetPlayerFromCharacter = __index(Players, "GetPlayerFromCharacter")
+local CameraViewportSize    = __index(Camera, "ViewportSize")
+local Mouse                 = __index(LocalPlayer, "GetMouse")(LocalPlayer)
+
+-- ── Connect/Disconnect helper ─────────────────────────────────
+local Connect, Disconnect
+do
+    local tmp = __index(game,"DescendantAdded").Connect(__index(game,"DescendantAdded"), function() end)
+    Connect = __index(game,"DescendantAdded").Connect
+    Disconnect = tmp.Disconnect; Disconnect(tmp)
+end
+
+-- ── Cleanup предыдущего инстанса ─────────────────────────────
+if getgenv().ExzzecutAimbot then
+    pcall(function() getgenv().ExzzecutAimbot:Exit() end)
+end
+pcall(function()
+    local cg = GetService("CoreGui")
+    local old = cg:FindFirstChild("ExzzecutAimbotGUI")
+    if old then old:Destroy() end
+end)
+pcall(function()
+    local pg = LocalPlayer:WaitForChild("PlayerGui")
+    local old = pg:FindFirstChild("ExzzecutAimbotGUI")
+    if old then old:Destroy() end
+end)
+
+-- ═══════════════════════════════════════════════════════════════
+--  НАСТРОЙКИ (можно менять через GUI или напрямую)
+-- ═══════════════════════════════════════════════════════════════
+local Settings = {
+    -- Вкл/выкл
+    Enabled            = true,
+
+    -- Цель
+    LockPart           = "Head",    -- "Head" | "HumanoidRootPart"
+
+    -- Режим удерживания: true = работает пока зажата кнопка
+    --                    false = переключатель (нажал раз вкл, снова — выкл)
+    HoldMode           = true,
+
+    -- Триггерная кнопка
+    -- Поддерживаются: Enum.UserInputType.MouseButton1/2
+    --                 Enum.KeyCode.E / .Q / .X и т.д.
+    TriggerKey         = Enum.UserInputType.MouseButton2,
+
+    -- Проверки
+    TeamCheck          = false,
+    WallCheck          = false,
+    AliveCheck         = true,
+
+    -- Плавность (0 = мгновенный snap, 0.1-0.3 = плавно)
+    Sensitivity        = 0.07,
+
+    -- FOV (радиус в пикселях, 0 = безлимитный)
+    FOVRadius          = 180,
+    FOVVisible         = true,
+
+    -- Цвета
+    FOVColor           = Color3fromRGB(255, 255, 255),
+    FOVLockedColor     = Color3fromRGB(255, 100, 100),
+    FOVOutlineColor    = Color3fromRGB(0, 0, 0),
+    TracerColor        = Color3fromRGB(130, 130, 255),
+
+    -- Трейсер
+    TracerEnabled      = true,
+    TracerThickness    = 1.5,
+
+    -- AimBots/NPC
+    AimPlayers         = true,
+    AimBots            = false,
+}
+
+-- ── Состояние ────────────────────────────────────────────────
+local Running            = false   -- аимбот активен прямо сейчас
+local Locked             = nil     -- текущая цель
+local Typing             = false
+local OriginalSensitivity = __index(UserInputService,"MouseDeltaSensitivity")
+local ActiveAnimation    = nil
+local ServiceConnections = {}
+local npcCache           = {}
+local npcCacheTime       = 0
+local NPC_CACHE_TTL      = 1.0
+
+-- ═══════════════════════════════════════════════════════════════
+--  DRAWING OBJECTS
+-- ═══════════════════════════════════════════════════════════════
+local FOVCircle        = Drawingnew("Circle")
+local FOVCircleOutline = Drawingnew("Circle")
+local Tracer           = Drawingnew("Line")
+
+-- начальные свойства
+setrenderproperty(FOVCircle,        "Visible",     false)
+setrenderproperty(FOVCircle,        "Thickness",   1)
+setrenderproperty(FOVCircle,        "NumSides",    64)
+setrenderproperty(FOVCircle,        "Filled",      false)
+setrenderproperty(FOVCircle,        "Transparency",1)
+
+setrenderproperty(FOVCircleOutline, "Visible",     false)
+setrenderproperty(FOVCircleOutline, "Thickness",   2)
+setrenderproperty(FOVCircleOutline, "NumSides",    64)
+setrenderproperty(FOVCircleOutline, "Filled",      false)
+setrenderproperty(FOVCircleOutline, "Transparency",1)
+
+setrenderproperty(Tracer, "Visible",     false)
+setrenderproperty(Tracer, "Thickness",   Settings.TracerThickness)
+setrenderproperty(Tracer, "Transparency",0.4)
+
+-- ═══════════════════════════════════════════════════════════════
+--  HELPERS
+-- ═══════════════════════════════════════════════════════════════
+local function CV(v) return Vector2new(v.X, v.Y) end
+
+local function CancelLock()
+    Locked = nil
+    __newindex(UserInputService, "MouseDeltaSensitivity", OriginalSensitivity)
+    if ActiveAnimation then ActiveAnimation:Cancel(); ActiveAnimation = nil end
+    setrenderproperty(FOVCircle, "Color", Settings.FOVColor)
+end
+
+local function GetTargetPart(target)
+    if target.type == "player" then
+        return FindFirstChild(target.character, Settings.LockPart)
+            or FindFirstChild(target.character, "HumanoidRootPart")
+    else
+        return target.part
+    end
+end
+
+local function GetTargetName(target)
+    if target.type == "player" then return __index(target.object, "Name") end
+    return target.character.Name .. " [NPC]"
+end
+
+-- ── Сбор целей ───────────────────────────────────────────────
+local function GetAllTargets()
+    local targets = {}
+    local TCOption = "TeamColor"
+
+    if Settings.AimPlayers then
+        for _, plr in next, GetPlayers(Players) do
+            if plr == LocalPlayer then continue end
+            local char = __index(plr,"Character")
+            local hum  = char and FindFirstChildOfClass(char,"Humanoid")
+            if not char or not hum then continue end
+            if not FindFirstChild(char, Settings.LockPart) then continue end
+            if Settings.TeamCheck then
+                if __index(plr,TCOption) == __index(LocalPlayer,TCOption) then continue end
+            end
+            if Settings.AliveCheck and __index(hum,"Health") <= 0 then continue end
+            if Settings.WallCheck then
+                local part = FindFirstChild(char, Settings.LockPart)
+                if part then
+                    local pp = __index(part,"Position")
+                    local bl = GetDescendants(__index(LocalPlayer,"Character"))
+                    for _, d in next, GetDescendants(char) do bl[#bl+1] = d end
+                    if #GetPartsObscuringTarget(Camera,{pp},bl) > 0 then continue end
+                end
+            end
+            table.insert(targets, {type="player", object=plr, character=char})
+        end
+    end
+
+    if Settings.AimBots then
+        local now = tick()
+        if now - npcCacheTime > NPC_CACHE_TTL then
+            npcCacheTime = now; npcCache = {}
+            local pChars = {}
+            for _, p in next, GetPlayers(Players) do
+                local c = __index(p,"Character")
+                if c then pChars[c] = true end
+            end
+            for _, obj in next, GetDescendants(workspace) do
+                if obj.ClassName == "Humanoid" then
+                    local ch   = obj.Parent
+                    if pChars[ch] then continue end
+                    local part = FindFirstChild(ch, Settings.LockPart)
+                           or   FindFirstChild(ch, "HumanoidRootPart")
+                    if part then
+                        table.insert(npcCache,{type="npc",object=obj,character=ch,part=part})
+                    end
+                end
+            end
+        end
+        for _, t in next, npcCache do
+            if Settings.AliveCheck then
+                if not t.object or not t.object.Parent then continue end
+                if __index(t.object,"Health") <= 0 then continue end
+            end
+            if Settings.WallCheck then
+                if not t.part or not t.part.Parent then continue end
+                local pp = __index(t.part,"Position")
+                local bl = GetDescendants(__index(LocalPlayer,"Character"))
+                if #GetPartsObscuringTarget(Camera,{pp},bl) > 0 then continue end
+            end
+            table.insert(targets, t)
+        end
+    end
+
+    return targets
+end
+
+-- ── Поиск ближайшей цели в FOV ───────────────────────────────
+local function GetClosestTarget()
+    local fovR      = Settings.FOVRadius > 0 and Settings.FOVRadius or 9999
+    local mousePos  = GetMouseLocation(UserInputService)
+    local camPos    = __index(Camera,"CFrame").Position
+    local bestDist  = math.huge
+    local bestTarget = nil
+
+    for _, target in next, GetAllTargets() do
+        local part = GetTargetPart(target)
+        if not part then continue end
+        local sv = WorldToViewportPoint(Camera, __index(part,"Position"))
+        if sv.Z <= 0 then continue end
+        local screenDist = (mousePos - Vector2new(sv.X, sv.Y)).Magnitude
+        if screenDist > fovR then continue end
+        -- приоритет: ближайший по экрану (можно переключить на 3D)
+        local worldDist = (camPos - __index(part,"Position")).Magnitude
+        if worldDist < bestDist then
+            bestDist    = worldDist
+            bestTarget  = target
+        end
+    end
+
+    return bestTarget
+end
+
+-- ── Шаг аимбота ──────────────────────────────────────────────
+local function AimbotStep()
+    -- обновляем lock
+    if Locked then
+        local lockedChar = Locked.character
+            or (Locked.type == "player" and __index(Locked.object,"Character"))
+        local part = GetTargetPart(Locked)
+        if not lockedChar or not part or not part.Parent then
+            CancelLock(); return
+        end
+        -- проверка: цель ещё в FOV?
+        local fovR     = Settings.FOVRadius > 0 and Settings.FOVRadius or 9999
+        local mousePos = GetMouseLocation(UserInputService)
+        local sv       = WorldToViewportPoint(Camera, __index(part,"Position"))
+        if sv.Z <= 0 or (mousePos - Vector2new(sv.X, sv.Y)).Magnitude > fovR then
+            CancelLock(); return
+        end
+    else
+        Locked = GetClosestTarget()
+        if not Locked then return end
+    end
+
+    local part = GetTargetPart(Locked)
+    if not part then CancelLock(); return end
+
+    local targetPos = __index(part,"Position")
+
+    if Settings.Sensitivity > 0 then
+        if ActiveAnimation then ActiveAnimation:Cancel() end
+        ActiveAnimation = TweenService:Create(
+            Camera,
+            TweenInfonew(Settings.Sensitivity, Enum.EasingStyle.Sine, Enum.EasingDirection.Out),
+            {CFrame = CFramenew(Camera.CFrame.Position, targetPos)}
+        )
+        ActiveAnimation:Play()
+    else
+        __newindex(Camera,"CFrame", CFramenew(Camera.CFrame.Position, targetPos))
+    end
+    __newindex(UserInputService,"MouseDeltaSensitivity", 0)
+    setrenderproperty(FOVCircle,"Color", Settings.FOVLockedColor)
+end
+
+-- ═══════════════════════════════════════════════════════════════
+--  GUI
+-- ═══════════════════════════════════════════════════════════════
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name           = "ExzzecutAimbotGUI"
+screenGui.ResetOnSpawn   = false
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+local ok = pcall(function() screenGui.Parent = GetService("CoreGui") end)
+if not ok or not screenGui.Parent then
+    screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+end
+
+-- ── Главный фрейм ────────────────────────────────────────────
+local W, H = 320, 400
+local frame = Instance.new("Frame")
+frame.Name               = "MainFrame"
+frame.Size               = UDim2.new(0, W, 0, H)
+frame.Position           = UDim2.new(0.5,-W/2, 0.5,-H/2)
+frame.BackgroundColor3   = Color3fromRGB(12, 12, 18)
+frame.BorderSizePixel    = 0
+frame.Active             = true
+frame.Draggable          = true
+frame.Parent             = screenGui
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 12)
+
+-- stroke
+local stroke = Instance.new("UIStroke")
+stroke.Color     = Color3fromRGB(70,70,120)
+stroke.Thickness = 1
+stroke.Parent    = frame
+
+-- ── Заголовок ────────────────────────────────────────────────
+local titleBar = Instance.new("Frame")
+titleBar.Size            = UDim2.new(1,0,0,36)
+titleBar.BackgroundColor3 = Color3fromRGB(20,20,36)
+titleBar.BorderSizePixel = 0
+titleBar.Parent          = frame
+Instance.new("UICorner", titleBar).CornerRadius = UDim.new(0,12)
+
+local titleLbl = Instance.new("TextLabel")
+titleLbl.Size               = UDim2.new(1,0,1,0)
+titleLbl.BackgroundTransparency = 1
+titleLbl.Text               = "🎯  Exzzecut Aimbot v2"
+titleLbl.TextColor3         = Color3fromRGB(255,210,60)
+titleLbl.TextSize           = 15
+titleLbl.Font               = Enum.Font.GothamBold
+titleLbl.Parent             = titleBar
+
+-- ── Scroll/Content ───────────────────────────────────────────
+local scroll = Instance.new("ScrollingFrame")
+scroll.Size               = UDim2.new(1,0,1,-40)
+scroll.Position           = UDim2.new(0,0,0,38)
+scroll.BackgroundTransparency = 1
+scroll.BorderSizePixel    = 0
+scroll.ScrollBarThickness = 3
+scroll.ScrollBarImageColor3 = Color3fromRGB(90,90,160)
+scroll.CanvasSize         = UDim2.new(0,0,0,0)
+scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+scroll.Parent             = frame
+
+local list = Instance.new("UIListLayout")
+list.SortOrder  = Enum.SortOrder.LayoutOrder
+list.Padding    = UDim.new(0,6)
+list.Parent     = scroll
+local pad = Instance.new("UIPadding")
+pad.PaddingLeft  = UDim.new(0,10)
+pad.PaddingRight = UDim.new(0,10)
+pad.PaddingTop   = UDim.new(0,8)
+pad.Parent       = scroll
+
+-- ── Утилиты для создания виджетов ────────────────────────────
+local LayoutOrder = 0
+local function newOrder() LayoutOrder=LayoutOrder+1; return LayoutOrder end
+
+local function mkLabel(text, color)
+    color = color or Color3fromRGB(140,140,170)
+    local lbl = Instance.new("TextLabel")
+    lbl.Size               = UDim2.new(1,0,0,16)
+    lbl.BackgroundTransparency = 1
+    lbl.Text               = text
+    lbl.TextColor3         = color
+    lbl.TextSize           = 11
+    lbl.Font               = Enum.Font.Gotham
+    lbl.TextXAlignment     = Enum.TextXAlignment.Left
+    lbl.LayoutOrder        = newOrder()
+    lbl.Parent             = scroll
+    return lbl
+end
+
+local function mkToggle(label, initVal, callback)
+    local row = Instance.new("Frame")
+    row.Size             = UDim2.new(1,0,0,30)
+    row.BackgroundColor3 = Color3fromRGB(22,22,34)
+    row.BorderSizePixel  = 0
+    row.LayoutOrder      = newOrder()
+    row.Parent           = scroll
+    Instance.new("UICorner", row).CornerRadius = UDim.new(0,7)
+
+    local lbl = Instance.new("TextLabel")
+    lbl.Size               = UDim2.new(1,-50,1,0)
+    lbl.Position           = UDim2.new(0,10,0,0)
+    lbl.BackgroundTransparency = 1
+    lbl.Text               = label
+    lbl.TextColor3         = Color3fromRGB(220,220,240)
+    lbl.TextSize           = 13
+    lbl.Font               = Enum.Font.Gotham
+    lbl.TextXAlignment     = Enum.TextXAlignment.Left
+    lbl.Parent             = row
+
+    -- pill toggle
+    local bg = Instance.new("Frame")
+    bg.Size             = UDim2.new(0,38,0,20)
+    bg.Position         = UDim2.new(1,-46,0.5,-10)
+    bg.BorderSizePixel  = 0
+    bg.Parent           = row
+    Instance.new("UICorner", bg).CornerRadius = UDim.new(0,10)
+
+    local knob = Instance.new("Frame")
+    knob.Size           = UDim2.new(0,16,0,16)
+    knob.Position       = UDim2.new(0,2,0.5,-8)
+    knob.BorderSizePixel = 0
+    knob.BackgroundColor3 = Color3fromRGB(255,255,255)
+    knob.Parent         = bg
+    Instance.new("UICorner", knob).CornerRadius = UDim.new(0,8)
+
+    local val = initVal
+
+    local function refresh()
+        if val then
+            bg.BackgroundColor3   = Color3fromRGB(80,200,120)
+            knob.Position         = UDim2.new(0,20,0.5,-8)
+        else
+            bg.BackgroundColor3   = Color3fromRGB(50,50,70)
+            knob.Position         = UDim2.new(0,2,0.5,-8)
+        end
+    end
+    refresh()
+
+    local btn = Instance.new("TextButton")
+    btn.Size               = UDim2.new(1,0,1,0)
+    btn.BackgroundTransparency = 1
+    btn.Text               = ""
+    btn.Parent             = row
+    btn.MouseButton1Click:Connect(function()
+        val = not val
+        refresh()
+        callback(val)
+    end)
+
+    return row, function(v) val=v; refresh() end
+end
+
+local function mkRadio(label, options, initIdx, callback)
+    local section = Instance.new("Frame")
+    section.Size            = UDim2.new(1,0,0, 26 + #options*28)
+    section.BackgroundTransparency = 1
+    section.LayoutOrder     = newOrder()
+    section.Parent          = scroll
+
+    local hdr = Instance.new("TextLabel")
+    hdr.Size               = UDim2.new(1,0,0,20)
+    hdr.Position           = UDim2.new(0,0,0,0)
+    hdr.BackgroundTransparency = 1
+    hdr.Text               = label
+    hdr.TextColor3         = Color3fromRGB(140,140,170)
+    hdr.TextSize           = 11
+    hdr.Font               = Enum.Font.Gotham
+    hdr.TextXAlignment     = Enum.TextXAlignment.Left
+    hdr.Parent             = section
+
+    local selected = initIdx
+    local btns = {}
+
+    local function refresh()
+        for i, b in ipairs(btns) do
+            if i == selected then
+                b.BackgroundColor3 = Color3fromRGB(90,90,200)
+                b.TextColor3       = Color3fromRGB(255,255,255)
+            else
+                b.BackgroundColor3 = Color3fromRGB(28,28,42)
+                b.TextColor3       = Color3fromRGB(160,160,200)
+            end
+        end
+    end
+
+    for i, opt in ipairs(options) do
+        local btn = Instance.new("TextButton")
+        btn.Size             = UDim2.new(1,0,0,24)
+        btn.Position         = UDim2.new(0,0,0, 20 + (i-1)*28)
+        btn.BackgroundColor3 = Color3fromRGB(28,28,42)
+        btn.BorderSizePixel  = 0
+        btn.Text             = opt
+        btn.TextColor3       = Color3fromRGB(160,160,200)
+        btn.TextSize         = 13
+        btn.Font             = Enum.Font.Gotham
+        btn.Parent           = section
+        Instance.new("UICorner", btn).CornerRadius = UDim.new(0,6)
+        btns[i] = btn
+        btn.MouseButton1Click:Connect(function()
+            selected = i
+            refresh()
+            callback(i, opt)
+        end)
+    end
+    refresh()
+    return section
+end
+
+local function mkSeparator()
+    local f = Instance.new("Frame")
+    f.Size             = UDim2.new(1,0,0,1)
+    f.BackgroundColor3 = Color3fromRGB(40,40,65)
+    f.BorderSizePixel  = 0
+    f.LayoutOrder      = newOrder()
+    f.Parent           = scroll
+end
+
+local function mkSectionTitle(text)
+    local lbl = Instance.new("TextLabel")
+    lbl.Size               = UDim2.new(1,0,0,20)
+    lbl.BackgroundTransparency = 1
+    lbl.Text               = text
+    lbl.TextColor3         = Color3fromRGB(255,210,60)
+    lbl.TextSize           = 12
+    lbl.Font               = Enum.Font.GothamBold
+    lbl.TextXAlignment     = Enum.TextXAlignment.Left
+    lbl.LayoutOrder        = newOrder()
+    lbl.Parent             = scroll
+    return lbl
+end
+
+local function mkSlider(label, min, max, initVal, callback)
+    local row = Instance.new("Frame")
+    row.Size             = UDim2.new(1,0,0,46)
+    row.BackgroundColor3 = Color3fromRGB(22,22,34)
+    row.BorderSizePixel  = 0
+    row.LayoutOrder      = newOrder()
+    row.Parent           = scroll
+    Instance.new("UICorner", row).CornerRadius = UDim.new(0,7)
+
+    local lbl = Instance.new("TextLabel")
+    lbl.Size               = UDim2.new(1,0,0,22)
+    lbl.Position           = UDim2.new(0,10,0,2)
+    lbl.BackgroundTransparency = 1
+    lbl.Text               = label .. ": " .. initVal
+    lbl.TextColor3         = Color3fromRGB(200,200,220)
+    lbl.TextSize           = 12
+    lbl.Font               = Enum.Font.Gotham
+    lbl.TextXAlignment     = Enum.TextXAlignment.Left
+    lbl.Parent             = row
+
+    local track = Instance.new("Frame")
+    track.Size             = UDim2.new(1,-20,0,8)
+    track.Position         = UDim2.new(0,10,0,30)
+    track.BackgroundColor3 = Color3fromRGB(40,40,60)
+    track.BorderSizePixel  = 0
+    track.Parent           = row
+    Instance.new("UICorner", track).CornerRadius = UDim.new(0,4)
+
+    local fill = Instance.new("Frame")
+    fill.Size             = UDim2.new((initVal-min)/(max-min),0,1,0)
+    fill.BackgroundColor3 = Color3fromRGB(100,90,230)
+    fill.BorderSizePixel  = 0
+    fill.Parent           = track
+    Instance.new("UICorner", fill).CornerRadius = UDim.new(0,4)
+
+    local dragging = false
+    track.InputBegan:Connect(function(inp)
+        if inp.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+        end
+    end)
+    track.InputEnded:Connect(function(inp)
+        if inp.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
+    UserInputService.InputEnded:Connect(function(inp)
+        if inp.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+    end)
+
+    local function update(x)
+        local rel = mathclamp((x - track.AbsolutePosition.X) / track.AbsoluteSize.X, 0, 1)
+        local v   = math.floor(min + rel*(max-min))
+        fill.Size = UDim2.new(rel,0,1,0)
+        lbl.Text  = label .. ": " .. v
+        callback(v)
+    end
+
+    UserInputService.InputChanged:Connect(function(inp)
+        if dragging and inp.UserInputType == Enum.UserInputType.MouseMovement then
+            update(inp.Position.X)
+        end
+    end)
+    track.InputBegan:Connect(function(inp)
+        if inp.UserInputType == Enum.UserInputType.MouseButton1 then
+            update(inp.Position.X)
+        end
+    end)
+
+    return row
+end
+
+-- ── Кнопка для бинда ──────────────────────────────────────────
+local function mkBind(label, initKey, callback)
+    local row = Instance.new("Frame")
+    row.Size             = UDim2.new(1,0,0,30)
+    row.BackgroundColor3 = Color3fromRGB(22,22,34)
+    row.BorderSizePixel  = 0
+    row.LayoutOrder      = newOrder()
+    row.Parent           = scroll
+    Instance.new("UICorner", row).CornerRadius = UDim.new(0,7)
+
+    local lbl = Instance.new("TextLabel")
+    lbl.Size               = UDim2.new(0.6,0,1,0)
+    lbl.Position           = UDim2.new(0,10,0,0)
+    lbl.BackgroundTransparency = 1
+    lbl.Text               = label
+    lbl.TextColor3         = Color3fromRGB(220,220,240)
+    lbl.TextSize           = 13
+    lbl.Font               = Enum.Font.Gotham
+    lbl.TextXAlignment     = Enum.TextXAlignment.Left
+    lbl.Parent             = row
+
+    -- отображение текущего бинда
+    local function keyName(k)
+        if typeof(k) == "EnumItem" then
+            if k.EnumType == Enum.UserInputType then
+                if k == Enum.UserInputType.MouseButton1 then return "LMB" end
+                if k == Enum.UserInputType.MouseButton2 then return "RMB" end
+                if k == Enum.UserInputType.MouseButton3 then return "MMB" end
+                return tostring(k.Name)
+            else
+                return tostring(k.Name)
+            end
+        end
+        return "?"
+    end
+
+    local currentKey = initKey
+    local waiting    = false
+
+    local bindBtn = Instance.new("TextButton")
+    bindBtn.Size             = UDim2.new(0,90,0,22)
+    bindBtn.Position         = UDim2.new(1,-98,0.5,-11)
+    bindBtn.BackgroundColor3 = Color3fromRGB(50,50,80)
+    bindBtn.BorderSizePixel  = 0
+    bindBtn.Text             = "[" .. keyName(currentKey) .. "]"
+    bindBtn.TextColor3       = Color3fromRGB(180,180,255)
+    bindBtn.TextSize         = 12
+    bindBtn.Font             = Enum.Font.GothamBold
+    bindBtn.Parent           = row
+    Instance.new("UICorner", bindBtn).CornerRadius = UDim.new(0,5)
+
+    local conn
+
+    local function startListening()
+        if waiting then return end
+        waiting = true
+        bindBtn.Text      = "[ ... ]"
+        bindBtn.TextColor3 = Color3fromRGB(255,210,60)
+
+        conn = UserInputService.InputBegan:Connect(function(inp, gpe)
+            if gpe then return end
+            -- игнорируем Escape (отмена)
+            if inp.KeyCode == Enum.KeyCode.Escape then
+                waiting = false
+                bindBtn.Text       = "[" .. keyName(currentKey) .. "]"
+                bindBtn.TextColor3 = Color3fromRGB(180,180,255)
+                conn:Disconnect()
+                return
+            end
+            local newKey
+            if inp.UserInputType == Enum.UserInputType.MouseButton1
+            or inp.UserInputType == Enum.UserInputType.MouseButton2
+            or inp.UserInputType == Enum.UserInputType.MouseButton3 then
+                newKey = inp.UserInputType
+            elseif inp.KeyCode ~= Enum.KeyCode.Unknown then
+                newKey = inp.KeyCode
+            end
+            if not newKey then return end
+            currentKey = newKey
+            callback(newKey)
+            waiting = false
+            bindBtn.Text       = "[" .. keyName(currentKey) .. "]"
+            bindBtn.TextColor3 = Color3fromRGB(180,180,255)
+            conn:Disconnect()
+        end)
+    end
+
+    bindBtn.MouseButton1Click:Connect(startListening)
+    return row
+end
+
+-- ═══════════════════════════════════════════════════════════════
+--  ПОСТРОЕНИЕ GUI
+-- ═══════════════════════════════════════════════════════════════
+
+-- Статус
+mkSectionTitle("── GENERAL ──────────────────────")
+
+local statusLbl = Instance.new("TextLabel")
+statusLbl.Size               = UDim2.new(1,0,0,20)
+statusLbl.BackgroundTransparency = 1
+statusLbl.Text               = "● Aimbot: ON"
+statusLbl.TextColor3         = Color3fromRGB(80,255,120)
+statusLbl.TextSize           = 13
+statusLbl.Font               = Enum.Font.GothamBold
+statusLbl.TextXAlignment     = Enum.TextXAlignment.Left
+statusLbl.LayoutOrder        = newOrder()
+statusLbl.Parent             = scroll
+
+local targetLbl = Instance.new("TextLabel")
+targetLbl.Size               = UDim2.new(1,0,0,16)
+targetLbl.BackgroundTransparency = 1
+targetLbl.Text               = "Target: —"
+targetLbl.TextColor3         = Color3fromRGB(140,140,180)
+targetLbl.TextSize           = 11
+targetLbl.Font               = Enum.Font.Gotham
+targetLbl.TextXAlignment     = Enum.TextXAlignment.Left
+targetLbl.LayoutOrder        = newOrder()
+targetLbl.Parent             = scroll
+
+mkSeparator()
+
+-- Toggle аимбота
+mkToggle("Aimbot Enabled", Settings.Enabled, function(v)
+    Settings.Enabled = v
+    if v then
+        statusLbl.Text      = "● Aimbot: ON"
+        statusLbl.TextColor3 = Color3fromRGB(80,255,120)
+    else
+        statusLbl.Text      = "● Aimbot: OFF"
+        statusLbl.TextColor3 = Color3fromRGB(255,80,80)
+        CancelLock(); Running = false
+    end
+end)
+
+mkSeparator()
+mkSectionTitle("── BIND & MODE ──────────────────")
+
+-- Бинд
+mkBind("Trigger Key", Settings.TriggerKey, function(newKey)
+    Settings.TriggerKey = newKey
+end)
+
+-- Hold/Toggle mode
+mkRadio("Trigger Mode", {"Hold (зажать)", "Toggle (переключатель)"}, 1, function(i)
+    Settings.HoldMode = (i == 1)
+end)
+
+mkSeparator()
+mkSectionTitle("── AIM TARGET ───────────────────")
+
+-- LockPart
+mkRadio("Lock Part", {"Head", "Torso (HumanoidRootPart)"}, 1, function(i, opt)
+    if i == 1 then
+        Settings.LockPart = "Head"
+    else
+        Settings.LockPart = "HumanoidRootPart"
+    end
+    CancelLock()
+end)
+
+mkSeparator()
+mkSectionTitle("── TARGET FILTERS ───────────────")
+
+mkToggle("Aim Players", Settings.AimPlayers, function(v)
+    Settings.AimPlayers = v
+end)
+
+mkToggle("Aim Bots / NPC", Settings.AimBots, function(v)
+    Settings.AimBots = v
+    npcCache = {}; npcCacheTime = 0
+end)
+
+mkToggle("Team Check (не стрелять по союзникам)", Settings.TeamCheck, function(v)
+    Settings.TeamCheck = v
+end)
+
+mkToggle("Wall Check (не стрелять сквозь стены)", Settings.WallCheck, function(v)
+    Settings.WallCheck = v
+end)
+
+mkToggle("Alive Check", Settings.AliveCheck, function(v)
+    Settings.AliveCheck = v
+end)
+
+mkSeparator()
+mkSectionTitle("── FOV & VISUAL ─────────────────")
+
+mkToggle("Show FOV Circle", Settings.FOVVisible, function(v)
+    Settings.FOVVisible = v
+    setrenderproperty(FOVCircle,        "Visible", v and Settings.Enabled)
+    setrenderproperty(FOVCircleOutline, "Visible", v and Settings.Enabled)
+end)
+
+mkSlider("FOV Radius", 30, 800, Settings.FOVRadius, function(v)
+    Settings.FOVRadius = v
+    setrenderproperty(FOVCircle,        "Radius", v)
+    setrenderproperty(FOVCircleOutline, "Radius", v)
+end)
+
+mkToggle("Tracer", Settings.TracerEnabled, function(v)
+    Settings.TracerEnabled = v
+    if not v then setrenderproperty(Tracer,"Visible",false) end
+end)
+
+mkSeparator()
+mkSectionTitle("── SMOOTHNESS ───────────────────")
+
+mkSlider("Smooth (0=snap, 20=плавно)", 0, 20, math.floor(Settings.Sensitivity*100), function(v)
+    Settings.Sensitivity = v / 100
+end)
+
+mkSeparator()
+
+-- Кнопка минимизации
+local minimized = false
+local minBtn = Instance.new("TextButton")
+minBtn.Size             = UDim2.new(0,24,0,24)
+minBtn.Position         = UDim2.new(1,-30,0,6)
+minBtn.BackgroundColor3 = Color3fromRGB(50,50,80)
+minBtn.BorderSizePixel  = 0
+minBtn.Text             = "−"
+minBtn.TextColor3       = Color3fromRGB(200,200,220)
+minBtn.TextSize         = 16
+minBtn.Font             = Enum.Font.GothamBold
+minBtn.Parent           = frame
+Instance.new("UICorner", minBtn).CornerRadius = UDim.new(0,12)
+minBtn.MouseButton1Click:Connect(function()
+    minimized = not minimized
+    scroll.Visible = not minimized
+    frame.Size = minimized and UDim2.new(0,W,0,38) or UDim2.new(0,W,0,H)
+    minBtn.Text = minimized and "+" or "−"
+end)
+
+-- ═══════════════════════════════════════════════════════════════
+--  INPUT HANDLER
+-- ═══════════════════════════════════════════════════════════════
+local function isKeyMatch(inp)
+    local tk = Settings.TriggerKey
+    if typeof(tk) == "EnumItem" then
+        if tk.EnumType == Enum.UserInputType then
+            return inp.UserInputType == tk
+        else
+            -- KeyCode
+            return inp.UserInputType == Enum.UserInputType.Keyboard and inp.KeyCode == tk
+        end
+    end
+    return false
+end
+
+ServiceConnections.InputBegan = UserInputService.InputBegan:Connect(function(inp, gpe)
+    if Typing or gpe then return end
+    if not isKeyMatch(inp) then return end
+    if Settings.HoldMode then
+        Running = true
+    else
+        Running = not Running
+        if not Running then CancelLock() end
+    end
+end)
+
+ServiceConnections.InputEnded = UserInputService.InputEnded:Connect(function(inp)
+    if Typing then return end
+    if not isKeyMatch(inp) then return end
+    if Settings.HoldMode then
+        Running = false
+        CancelLock()
+    end
+end)
+
+ServiceConnections.TypingOn  = UserInputService.TextBoxFocused:Connect(function()    Typing=true  end)
+ServiceConnections.TypingOff = UserInputService.TextBoxFocusReleased:Connect(function() Typing=false end)
+
+-- ═══════════════════════════════════════════════════════════════
+--  MAIN RENDER LOOP
+-- ═══════════════════════════════════════════════════════════════
+ServiceConnections.Render = RunService.RenderStepped:Connect(function()
+    local mousePos = GetMouseLocation(UserInputService)
+    local fovR     = Settings.FOVRadius
+
+    -- FOV circle
+    local showFov = Settings.Enabled and Settings.FOVVisible
+    setrenderproperty(FOVCircle,        "Visible",  showFov)
+    setrenderproperty(FOVCircleOutline, "Visible",  showFov)
+    if showFov then
+        setrenderproperty(FOVCircle,        "Radius",   fovR)
+        setrenderproperty(FOVCircleOutline, "Radius",   fovR)
+        setrenderproperty(FOVCircle,        "Position", mousePos)
+        setrenderproperty(FOVCircleOutline, "Position", mousePos)
+        setrenderproperty(FOVCircle,        "Color",
+            Locked and Settings.FOVLockedColor or Settings.FOVColor)
+        setrenderproperty(FOVCircleOutline, "Color",    Settings.FOVOutlineColor)
+        setrenderproperty(FOVCircleOutline, "Thickness", 2)
+    end
+
+    -- Aimbot step
+    if Settings.Enabled and Running then
+        AimbotStep()
+    else
+        if not Running then
+            if Locked then CancelLock() end
+        end
+    end
+
+    -- Tracer
+    if Settings.TracerEnabled and Settings.Enabled then
+        local tracerTarget = Locked or (Running and GetClosestTarget())
+        if tracerTarget then
+            local part = GetTargetPart(tracerTarget)
+            if part then
+                local sv = WorldToViewportPoint(Camera, __index(part,"Position"))
+                if sv.Z > 0 then
+                    setrenderproperty(Tracer,"Visible",   true)
+                    setrenderproperty(Tracer,"Color",     Settings.TracerColor)
+                    setrenderproperty(Tracer,"Thickness", Settings.TracerThickness)
+                    setrenderproperty(Tracer,"Transparency",0.4)
+                    setrenderproperty(Tracer,"From",      mousePos)
+                    setrenderproperty(Tracer,"To",        Vector2new(sv.X,sv.Y))
+                else
+                    setrenderproperty(Tracer,"Visible",false)
+                end
+            else
+                setrenderproperty(Tracer,"Visible",false)
+            end
+        else
+            setrenderproperty(Tracer,"Visible",false)
+        end
+    else
+        setrenderproperty(Tracer,"Visible",false)
+    end
+
+    -- Обновить statusLbl target
+    if Locked then
+        targetLbl.Text       = "Target: " .. GetTargetName(Locked)
+        targetLbl.TextColor3 = Color3fromRGB(100,255,100)
+    else
+        targetLbl.Text       = "Target: —"
+        targetLbl.TextColor3 = Color3fromRGB(140,140,180)
+    end
+end)
+
+-- ═══════════════════════════════════════════════════════════════
+--  GLOBAL API
+-- ═══════════════════════════════════════════════════════════════
+getgenv().ExzzecutAimbot = {
+    Settings = Settings,
+    Exit = function(self)
+        for _, c in pairs(ServiceConnections) do pcall(function() c:Disconnect() end) end
+        CancelLock()
+        FOVCircle:Remove()
+        FOVCircleOutline:Remove()
+        Tracer:Remove()
+        screenGui:Destroy()
+        getgenv().ExzzecutAimbot = nil
+        pcall(collectgarbage,"step",200)
+    end,
+}
+
+print("⚡ Exzzecut Standalone Aimbot v2.0 loaded")
+print("   Trigger: RMB (Hold) | FOV: 180 | Part: Head")
